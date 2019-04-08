@@ -704,7 +704,7 @@ struct functor_vec_scan {
 
   KOKKOS_INLINE_FUNCTION
   void operator()( typename policy_type::member_type team ) const {
-    Kokkos::parallel_scan( Kokkos::ThreadVectorRange( team, 13 ), [&] ( int i, Scalar & val, bool final )
+    Kokkos::parallel_scan<Scalar>( Kokkos::ThreadVectorRange( team, 13 ), [&] ( int i, Scalar & val, bool final )
     {
       val += i;
 

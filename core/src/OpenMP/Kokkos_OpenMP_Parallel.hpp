@@ -307,33 +307,31 @@ private:
   typedef Kokkos::Impl::FunctorValueInit<   ReducerTypeFwd, WorkTagFwd > ValueInit ;
   typedef Kokkos::Impl::FunctorValueJoin<   ReducerTypeFwd, WorkTagFwd > ValueJoin ;
 
-  typedef typename Analysis::pointer_type    pointer_type ;
-  typedef typename Analysis::reference_type  reference_type ;
-
         OpenMPExec   * m_instance;
   const FunctorType    m_functor;
   const Policy         m_policy;
   const ReducerType    m_reducer;
-  const pointer_type   m_result_ptr;
 
-  template< class TagType >
+  void* m_result_ptr;
+
+  template<class TagType, class ReferenceType>
   inline static
   typename std::enable_if< std::is_same< TagType , void >::value >::type
   exec_range( const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update )
+            , ReferenceType&& update )
     {
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
         functor( iwork , update );
       }
     }
 
-  template< class TagType >
+  template<class TagType, class ReferenceType>
   inline static
   typename std::enable_if< ! std::is_same< TagType , void >::value >::type
   exec_range( const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update )
+            , ReferenceType&& update )
     {
       const TagType t{} ;
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
@@ -345,19 +343,36 @@ public:
 
   inline void execute() const
     {
+      using reference_type = decltype(
+        ValueInit::init(
+          ReducerConditional::select(m_functor, m_reducer),
+          (*m_instance->get_thread_data()).pool_reduce_local()
+        )
+      );
+      using value_type =
+        typename std::remove_reference<
+          typename std::remove_pointer<
+            reference_type
+          >::type
+        >::type;
+      using pointer_type = value_type*;
+
       enum { is_dynamic = std::is_same< typename Policy::schedule_type::type
                                       , Kokkos::Dynamic >::value };
 
       OpenMPExec::verify_is_master("Kokkos::OpenMP parallel_reduce");
 
       const size_t pool_reduce_bytes =
-        Analysis::value_size( ReducerConditional::select(m_functor, m_reducer));
+        Analysis::template value_size<reference_type, value_type>(
+          ReducerConditional::select(m_functor, m_reducer)
+        );
 
       m_instance->resize_thread_data( pool_reduce_bytes
                                     , 0 // team_reduce_bytes
                                     , 0 // team_shared_bytes
                                     , 0 // thread_local_bytes
                                     );
+
 
 #ifdef KOKKOS_ENABLE_DEPRECATED_CODE
       const int pool_size = OpenMP::thread_pool_size();
@@ -376,9 +391,11 @@ public:
           if ( data.pool_rendezvous() ) data.pool_rendezvous_release();
         }
 
+
         reference_type update =
           ValueInit::init( ReducerConditional::select(m_functor , m_reducer)
                          , data.pool_reduce_local() );
+
 
         std::pair<int64_t,int64_t> range(0,0);
 
@@ -398,7 +415,7 @@ public:
 
       // Reduction:
 
-      const pointer_type ptr = pointer_type( m_instance->get_thread_data(0)->pool_reduce_local() );
+      auto ptr = pointer_type( m_instance->get_thread_data(0)->pool_reduce_local() );
 
       for ( int i = 1 ; i < pool_size ; ++i ) {
         ValueJoin::join( ReducerConditional::select(m_functor , m_reducer)
@@ -409,9 +426,10 @@ public:
       Kokkos::Impl::FunctorFinal<  ReducerTypeFwd , WorkTagFwd >::final( ReducerConditional::select(m_functor , m_reducer) , ptr );
 
       if ( m_result_ptr ) {
-        const int n = Analysis::value_count( ReducerConditional::select(m_functor , m_reducer) );
+        const int n = Analysis::template value_count<reference_type>( ReducerConditional::select(m_functor , m_reducer) );
 
-        for ( int j = 0 ; j < n ; ++j ) { m_result_ptr[j] = ptr[j] ; }
+        auto* result_ptr_cast = static_cast<pointer_type>(m_result_ptr);
+        for ( int j = 0 ; j < n ; ++j ) { result_ptr_cast[j] = ptr[j] ; }
       }
     }
 
@@ -481,30 +499,31 @@ private:
   typedef Kokkos::Impl::FunctorValueInit<   ReducerTypeFwd, WorkTagFwd > ValueInit ;
   typedef Kokkos::Impl::FunctorValueJoin<   ReducerTypeFwd, WorkTagFwd > ValueJoin ;
 
-  typedef typename Analysis::pointer_type    pointer_type ;
-  typedef typename Analysis::value_type      value_type ;
-  typedef typename Analysis::reference_type  reference_type ;
+  //typedef typename Analysis::pointer_type    pointer_type ;
+  //typedef typename Analysis::value_type      value_type ;
+  //typedef typename Analysis::reference_type  reference_type ;
 
-  using iterate_type = typename Kokkos::Impl::HostIterateTile< MDRangePolicy
-                                                             , FunctorType
-                                                             , WorkTag
-                                                             , reference_type
-                                                             >;
 
         OpenMPExec   * m_instance ;
   const FunctorType   m_functor ;
   const MDRangePolicy m_mdr_policy ;
   const Policy        m_policy ;     // construct as RangePolicy( 0, num_tiles ).set_chunk_size(1) in ctor
   const ReducerType   m_reducer ;
-  const pointer_type  m_result_ptr ;
+  void*  m_result_ptr ;
 
+  template <class ReferenceType>
   inline static
   void
   exec_range( const MDRangePolicy & mdr_policy
             , const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update )
+            , ReferenceType&& update )
     {
+      using iterate_type = typename Kokkos::Impl::HostIterateTile< MDRangePolicy
+        , FunctorType
+        , WorkTag
+        , ReferenceType
+      >;
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
         iterate_type( mdr_policy, functor, update )( iwork );
       }
@@ -519,8 +538,24 @@ public:
 
       OpenMPExec::verify_is_master("Kokkos::OpenMP parallel_reduce");
 
+      using reference_type = decltype(
+        ValueInit::init(
+          ReducerConditional::select(m_functor, m_reducer),
+          (*m_instance->get_thread_data()).pool_reduce_local()
+        )
+      );
+      using value_type =
+        typename std::remove_reference<
+          typename std::remove_pointer<
+            reference_type
+          >::type
+        >::type;
+      using pointer_type = value_type*;
+
       const size_t pool_reduce_bytes =
-        Analysis::value_size( ReducerConditional::select(m_functor, m_reducer));
+        Analysis::template value_size<reference_type, value_type>(
+          ReducerConditional::select(m_functor, m_reducer)
+        );
 
       m_instance->resize_thread_data( pool_reduce_bytes
                                     , 0 // team_reduce_bytes
@@ -578,9 +613,10 @@ public:
       Kokkos::Impl::FunctorFinal<  ReducerTypeFwd , WorkTagFwd >::final( ReducerConditional::select(m_functor , m_reducer) , ptr );
 
       if ( m_result_ptr ) {
-        const int n = Analysis::value_count( ReducerConditional::select(m_functor , m_reducer) );
+        const int n = Analysis::template value_count<reference_type>( ReducerConditional::select(m_functor , m_reducer) );
 
-        for ( int j = 0 ; j < n ; ++j ) { m_result_ptr[j] = ptr[j] ; }
+        auto* result_ptr_cast = static_cast<pointer_type>(m_result_ptr);
+        for ( int j = 0 ; j < n ; ++j ) { result_ptr_cast[j] = ptr[j] ; }
       }
     }
 
@@ -654,31 +690,31 @@ private:
   typedef Kokkos::Impl::FunctorValueJoin<   FunctorType, WorkTag > ValueJoin ;
   typedef Kokkos::Impl::FunctorValueOps<    FunctorType, WorkTag > ValueOps ;
 
-  typedef typename Analysis::pointer_type    pointer_type ;
-  typedef typename Analysis::reference_type  reference_type ;
+  //typedef typename Analysis::pointer_type    pointer_type ;
+  //typedef typename Analysis::reference_type  reference_type ;
 
         OpenMPExec   * m_instance;
   const FunctorType    m_functor;
   const Policy         m_policy;
 
-  template< class TagType >
+  template<class TagType, class ReferenceType >
   inline static
   typename std::enable_if< std::is_same< TagType , void >::value >::type
   exec_range( const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update , const bool final )
+            , ReferenceType&& update , const bool final )
     {
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
         functor( iwork , update , final );
       }
     }
 
-  template< class TagType >
+  template<class TagType, class ReferenceType>
   inline static
   typename std::enable_if< ! std::is_same< TagType , void >::value >::type
   exec_range( const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update , const bool final )
+            , ReferenceType&& update , const bool final )
     {
       const TagType t{} ;
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
@@ -693,8 +729,22 @@ public:
     {
       OpenMPExec::verify_is_master("Kokkos::OpenMP parallel_scan");
 
-      const int    value_count       = Analysis::value_count( m_functor );
-      const size_t pool_reduce_bytes = 2 * Analysis::value_size( m_functor );
+      using reference_type = decltype(
+        ValueInit::init(
+          m_functor,
+          (*m_instance->get_thread_data()).pool_reduce_local()
+        )
+      );
+      using value_type =
+        typename std::remove_reference<
+          typename std::remove_pointer<
+            reference_type
+          >::type
+        >::type;
+      using pointer_type = value_type*;
+
+      const int    value_count       = Analysis::template value_count<reference_type>( m_functor );
+      const size_t pool_reduce_bytes = 2 * Analysis::template value_size<reference_type, value_type>( m_functor );
 
       m_instance->resize_thread_data( pool_reduce_bytes
                                     , 0 // team_reduce_bytes
@@ -790,32 +840,32 @@ private:
   typedef Kokkos::Impl::FunctorValueJoin<   FunctorType, WorkTag > ValueJoin ;
   typedef Kokkos::Impl::FunctorValueOps<    FunctorType, WorkTag > ValueOps ;
 
-  typedef typename Analysis::pointer_type    pointer_type ;
-  typedef typename Analysis::reference_type  reference_type ;
+  //typedef typename Analysis::pointer_type    pointer_type ;
+  //typedef typename Analysis::reference_type  reference_type ;
 
         OpenMPExec   * m_instance;
   const FunctorType    m_functor;
   const Policy         m_policy;
         ReturnType   & m_returnvalue;
 
-  template< class TagType >
+  template< class TagType, class ReferenceType >
   inline static
   typename std::enable_if< std::is_same< TagType , void >::value >::type
   exec_range( const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update , const bool final )
+            , ReferenceType&& update , const bool final )
     {
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
         functor( iwork , update , final );
       }
     }
 
-  template< class TagType >
+  template< class TagType, class ReferenceType >
   inline static
   typename std::enable_if< ! std::is_same< TagType , void >::value >::type
   exec_range( const FunctorType & functor
             , const Member ibeg , const Member iend
-            , reference_type update , const bool final )
+            , ReferenceType&& update , const bool final )
     {
       const TagType t{} ;
       for ( Member iwork = ibeg ; iwork < iend ; ++iwork ) {
@@ -830,8 +880,22 @@ public:
     {
       OpenMPExec::verify_is_master("Kokkos::OpenMP parallel_scan");
 
-      const int    value_count       = Analysis::value_count( m_functor );
-      const size_t pool_reduce_bytes = 2 * Analysis::value_size( m_functor );
+      using reference_type = decltype(
+        ValueInit::init(
+          m_functor,
+          (*m_instance->get_thread_data()).pool_reduce_local()
+        )
+      );
+      using value_type =
+        typename std::remove_reference<
+          typename std::remove_pointer<
+            reference_type
+          >::type
+        >::type;
+      using pointer_type = value_type*;
+
+      const int    value_count       = Analysis::template value_count<reference_type>( m_functor );
+      const size_t pool_reduce_bytes = 2 * Analysis::template value_size<reference_type, value_type>( m_functor );
 
       m_instance->resize_thread_data( pool_reduce_bytes
                                     , 0 // team_reduce_bytes
@@ -1092,22 +1156,22 @@ private:
   typedef Kokkos::Impl::FunctorValueInit<   ReducerTypeFwd , WorkTagFwd >  ValueInit ;
   typedef Kokkos::Impl::FunctorValueJoin<   ReducerTypeFwd , WorkTagFwd >  ValueJoin ;
 
-  typedef typename Analysis::pointer_type    pointer_type ;
-  typedef typename Analysis::reference_type  reference_type ;
+  //typedef typename Analysis::pointer_type    pointer_type ;
+  //typedef typename Analysis::reference_type  reference_type ;
 
         OpenMPExec   * m_instance;
   const FunctorType    m_functor;
   const Policy         m_policy;
   const ReducerType    m_reducer;
-  const pointer_type   m_result_ptr;
+  void* m_result_ptr;
   const int            m_shmem_size;
 
-  template< class TagType >
+  template< class TagType, class ValueType >
   inline static
   typename std::enable_if< ( std::is_same< TagType , void >::value ) >::type
   exec_team( const FunctorType & functor
            , HostThreadTeamData & data
-           , reference_type     & update
+           , ValueType& update
            , const int league_rank_begin
            , const int league_rank_end
            , const int league_size )
@@ -1125,12 +1189,12 @@ private:
     }
 
 
-  template< class TagType >
+  template< class TagType, class ValueType >
   inline static
   typename std::enable_if< ( ! std::is_same< TagType , void >::value ) >::type
   exec_team( const FunctorType & functor
            , HostThreadTeamData & data
-           , reference_type     & update
+           , ValueType& update
            , const int league_rank_begin
            , const int league_rank_end
            , const int league_size )
@@ -1158,8 +1222,24 @@ public:
 
       OpenMPExec::verify_is_master("Kokkos::OpenMP parallel_reduce");
 
+      using reference_type = decltype(
+        ValueInit::init(
+          m_functor,
+          (*m_instance->get_thread_data()).pool_reduce_local()
+        )
+      );
+      using value_type =
+        typename std::remove_reference<
+          typename std::remove_pointer<
+            reference_type
+          >::type
+        >::type;
+      using pointer_type = value_type*;
+
       const size_t pool_reduce_size =
-        Analysis::value_size( ReducerConditional::select(m_functor, m_reducer));
+        Analysis::template value_size<reference_type, value_type>(
+          ReducerConditional::select(m_functor, m_reducer)
+        );
 
       const size_t team_reduce_size = TEAM_REDUCE_SIZE * m_policy.team_size();
       const size_t team_shared_size = m_shmem_size + m_policy.scratch_size(1);
@@ -1242,9 +1322,10 @@ public:
       Kokkos::Impl::FunctorFinal<  ReducerTypeFwd , WorkTagFwd >::final( ReducerConditional::select(m_functor , m_reducer) , ptr );
 
       if ( m_result_ptr ) {
-        const int n = Analysis::value_count( ReducerConditional::select(m_functor , m_reducer) );
+        const int n = Analysis::template value_count<reference_type>( ReducerConditional::select(m_functor , m_reducer) );
 
-        for ( int j = 0 ; j < n ; ++j ) { m_result_ptr[j] = ptr[j] ; }
+        auto* result_ptr_cast = static_cast<pointer_type>(m_result_ptr);
+        for ( int j = 0 ; j < n ; ++j ) { result_ptr_cast[j] = ptr[j] ; }
       }
     }
 

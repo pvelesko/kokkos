@@ -135,12 +135,16 @@ private:
   {
     using type = typename F::value_type ;
 
-    static_assert( ! std::is_reference< type >::value &&
-                   std::rank< type >::value <= 1 &&
-                   std::extent< type >::value == 0
-                 , "Kokkos Functor::value_type is T or T[]" );
+    static_assert(
+      !std::is_reference<type>::value
+      && std::rank<type>::value <= 1
+      && std::extent<type>::value == 0
+      && std::rank<typename std::remove_extent<type>::type>::value == 0,
+      "Kokkos Functor::value_type is not T or T[]"
+    );
   };
 
+#if 0
   //----------------------------------------
   // If Functor::value_type does not exist then evaluate operator(),
   // depending upon the pattern and whether the policy has a work tag,
@@ -294,9 +298,11 @@ private:
        , candidate_is_array = std::rank< candidate_type >::value == 1 };
 
   //----------------------------------------
+#endif
 
 public:
 
+  // TODO check for mismatch (issue #2074)
   using execution_space = typename std::conditional
     < functor_has_space::value
     , typename functor_has_space::type
@@ -307,6 +313,7 @@ public:
       >::type
     >::type ;
 
+#if 0
   using value_type = typename std::remove_extent< candidate_type >::type ;
 
   static_assert( ! std::is_const< value_type >::value
@@ -327,383 +334,346 @@ public:
     std::conditional< candidate_is_array  , ValueType * , typename
     std::conditional< ! candidate_is_void , ValueType & , void >
     ::type >::type ;
+#endif
 
 private:
 
-  template< bool IsArray , class FF >
+  template<class ReferenceType, bool IsArray, class FF>
   KOKKOS_INLINE_FUNCTION static constexpr
   typename std::enable_if< IsArray , unsigned >::type
   get_length( FF const & f ) { return f.value_count ; }
 
-  template< bool IsArray , class FF >
+  template<class ReferenceType, bool IsArray, class FF>
   KOKKOS_INLINE_FUNCTION static constexpr
   typename std::enable_if< ! IsArray , unsigned >::type
-  get_length( FF const & ) { return candidate_is_void ? 0 : 1 ; }
+  get_length( FF const & )
+  {
+    return
+      std::is_void<
+        typename std::remove_reference<typename std::remove_pointer<
+          ReferenceType
+        >::type>::type
+      >::value ? 0 : 1;
+  }
 
 public:
 
-  enum { StaticValueSize = ! candidate_is_void &&
-                           ! candidate_is_array
-                         ? sizeof(ValueType) : 0 };
+  //enum { StaticValueSize = ! candidate_is_void &&
+  //                         ! candidate_is_array
+  //                       ? sizeof(ValueType) : 0 };
 
+  template <class ReferenceType>
   KOKKOS_FORCEINLINE_FUNCTION static constexpr
   unsigned value_count( const Functor & f )
-    { return FunctorAnalysis::template get_length< candidate_is_array >(f); }
+    { return FunctorAnalysis::template get_length<ReferenceType, std::is_pointer<ReferenceType>::value>(f); }
 
+  template <class ReferenceType, class ValueType>
   KOKKOS_FORCEINLINE_FUNCTION static constexpr
   unsigned value_size( const Functor & f )
-    { return FunctorAnalysis::template get_length< candidate_is_array >(f) * sizeof(ValueType); }
+    { return FunctorAnalysis::template get_length<ReferenceType, std::is_pointer<ReferenceType>::value>(f) * sizeof(ValueType); }
 
   //----------------------------------------
 
-  template< class Unknown >
+  template<class ReferenceType, class Unknown >
   KOKKOS_FORCEINLINE_FUNCTION static constexpr
   unsigned value_count( const Unknown & )
-    { return candidate_is_void ? 0 : 1  ; }
+  {
+    return
+      std::is_void<
+        typename std::remove_reference<typename std::remove_pointer<
+          ReferenceType
+        >::type>::type
+      >::value ? 0 : 1;
+  }
 
-  template< class Unknown >
+  template<class ReferenceType, class ValueType, class Unknown>
   KOKKOS_FORCEINLINE_FUNCTION static constexpr
   unsigned value_size( const Unknown & )
-    { return candidate_is_void ? 0 : sizeof(ValueType); }
+  {
+    return
+      std::is_void<
+        typename std::remove_reference<typename std::remove_pointer<
+          ReferenceType
+        >::type>::type
+      >::value ? 0 : sizeof(ValueType);
+  }
 
 private:
 
-  enum INTERFACE : int
-    { DISABLE           = 0
-    , NO_TAG_NOT_ARRAY  = 1
-    , NO_TAG_IS_ARRAY   = 2
-    , HAS_TAG_NOT_ARRAY = 3
-    , HAS_TAG_IS_ARRAY  = 4
-    , DEDUCED =
-       ! std::is_same< PatternInterface , REDUCE >::value ? DISABLE : (
-       std::is_same<Tag,void>::value
-         ? (candidate_is_array ? NO_TAG_IS_ARRAY  : NO_TAG_NOT_ARRAY)
-         : (candidate_is_array ? HAS_TAG_IS_ARRAY : HAS_TAG_NOT_ARRAY) )
-    };
+  //enum INTERFACE : int
+  //  { DISABLE           = 0
+  //  , NO_TAG_NOT_ARRAY  = 1
+  //  , NO_TAG_IS_ARRAY   = 2
+  //  , HAS_TAG_NOT_ARRAY = 3
+  //  , HAS_TAG_IS_ARRAY  = 4
+  //  , DEDUCED =
+  //     ! std::is_same< PatternInterface , REDUCE >::value ? DISABLE : (
+  //     std::is_same<Tag,void>::value
+  //       ? (candidate_is_array ? NO_TAG_IS_ARRAY  : NO_TAG_NOT_ARRAY)
+  //       : (candidate_is_array ? HAS_TAG_IS_ARRAY : HAS_TAG_NOT_ARRAY) )
+  //  };
 
   //----------------------------------------
   // parallel_reduce join operator
 
-  template< class F , INTERFACE >
-  struct has_join_function ;
+  template<class F, class Tag, class ReferenceType>
+  struct has_join_function : std::false_type { };
 
-  template< class F >
-  struct has_join_function< F , NO_TAG_NOT_ARRAY >
-    {
-      typedef volatile       ValueType & vref_type ;
-      typedef volatile const ValueType & cvref_type ;
+  template <class F, class ValueType>
+  struct has_join_function<F, void, ValueType&> : std::true_type
+  {
+    typedef volatile       ValueType & vref_type ;
+    typedef volatile const ValueType & cvref_type ;
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( vref_type , cvref_type ) const );
+    KOKKOS_INLINE_FUNCTION static
+    void join( F const * const f
+             , ValueType volatile * dst
+             , ValueType volatile const * src )
+      { f->join( *dst , *src ); }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( vref_type , cvref_type ) );
+  template <class F, class ValueType>
+  struct has_join_function<F, void, ValueType*> : std::true_type
+  {
+    typedef volatile       ValueType * vref_type ;
+    typedef volatile const ValueType * cvref_type ;
 
-      KOKKOS_INLINE_FUNCTION static
-      void join( F const * const f
-               , ValueType volatile * dst
-               , ValueType volatile const * src )
-        { f->join( *dst , *src ); }
-    };
+    KOKKOS_INLINE_FUNCTION static
+    void join( F const * const f
+             , ValueType volatile * dst
+             , ValueType volatile const * src )
+      { f->join( dst , src ); }
+  };
 
-  template< class F >
-  struct has_join_function< F , NO_TAG_IS_ARRAY >
-    {
-      typedef volatile       ValueType * vref_type ;
-      typedef volatile const ValueType * cvref_type ;
+  template <class F, class Tag, class ValueType>
+  struct has_join_function<F, Tag, ValueType&> : std::true_type
+  {
+    typedef volatile       ValueType & vref_type ;
+    typedef volatile const ValueType & cvref_type ;
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( vref_type , cvref_type ) const );
+    KOKKOS_INLINE_FUNCTION static
+    void join( F const * const f
+             , ValueType volatile * dst
+             , ValueType volatile const * src )
+      { f->join( WTag() , *dst , *src ); }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( vref_type , cvref_type ) );
+  template <class F, class Tag, class ValueType>
+  struct has_join_function<F, Tag, ValueType*> : std::true_type
+  {
+    typedef volatile       ValueType * vref_type ;
+    typedef volatile const ValueType * cvref_type ;
 
-      KOKKOS_INLINE_FUNCTION static
-      void join( F const * const f
-               , ValueType volatile * dst
-               , ValueType volatile const * src )
-        { f->join( dst , src ); }
-    };
-
-  template< class F >
-  struct has_join_function< F , HAS_TAG_NOT_ARRAY >
-    {
-      typedef volatile       ValueType & vref_type ;
-      typedef volatile const ValueType & cvref_type ;
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag , vref_type , cvref_type ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag , vref_type , cvref_type ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag const & , vref_type , cvref_type ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag const & , vref_type , cvref_type ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void join( F const * const f
-               , ValueType volatile * dst
-               , ValueType volatile const * src )
-        { f->join( WTag() , *dst , *src ); }
-    };
-
-  template< class F >
-  struct has_join_function< F , HAS_TAG_IS_ARRAY >
-    {
-      typedef volatile       ValueType * vref_type ;
-      typedef volatile const ValueType * cvref_type ;
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag , vref_type , cvref_type ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag , vref_type , cvref_type ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag const & , vref_type , cvref_type ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag const & , vref_type , cvref_type ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void join( F const * const f
-               , ValueType volatile * dst
-               , ValueType volatile const * src )
-        { f->join( WTag() , dst , src ); }
-    };
+    KOKKOS_INLINE_FUNCTION static
+    void join( F const * const f
+             , ValueType volatile * dst
+             , ValueType volatile const * src )
+      { f->join( WTag() , dst , src ); }
+  };
 
 
-  template< class F   = Functor
-          , INTERFACE = DEDUCED
-          , typename  = void >
+  template<class F, class ReferenceType, typename = void>
   struct DeduceJoin
-    {
-      enum { value = false };
+  {
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
 
-      KOKKOS_INLINE_FUNCTION static
-      void join( F const * const f
-               , ValueType volatile * dst
-               , ValueType volatile const * src )
-       {
-         const int n = FunctorAnalysis::value_count( *f );
-         for ( int i = 0 ; i < n ; ++i ) dst[i] += src[i];
-       }
-    };
+    enum { value = false };
 
-  template< class F >
-  struct DeduceJoin< F , DISABLE , void >
-    {
-      enum { value = false };
+    KOKKOS_INLINE_FUNCTION static
+    void join( F const * const f
+             , ValueType volatile * dst
+             , ValueType volatile const * src )
+     {
+       const int n = FunctorAnalysis::value_count( *f );
+       for ( int i = 0 ; i < n ; ++i ) dst[i] += src[i];
+     }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void join( F const * const
-               , ValueType volatile *
-               , ValueType volatile const * ) {}
-    };
+  template<class F, class ReferenceType>
+  struct DeduceJoin<
+    F, ReferenceType,
+    typename std::enable_if<
+      !std::is_same<PatternInterface, REDUCE>::value
+    >::type
+  >
+  {
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
+    enum { value = false };
 
-  template< class F , INTERFACE I >
-  struct DeduceJoin< F , I ,
-    decltype( has_join_function<F,I>::enable_if( & F::join ) ) >
-    : public has_join_function<F,I>
-    { enum { value = true }; };
+    template <class T>
+    KOKKOS_INLINE_FUNCTION static
+    void join( F const * const
+             , ValueType volatile *
+             , ValueType volatile const * ) {}
+  };
+
+  template<class F, class ReferenceType>
+  struct DeduceJoin<
+    F, ReferenceType,
+    typename std::enable_if<has_join_function<F, WTag, ReferenceType>::value>::type
+  > : public has_join_function<F, WTag, ReferenceType>
+  { };
 
   //----------------------------------------
 
-  template< class , INTERFACE >
-  struct has_init_function ;
+  template <class F, class Tag, class ReferenceType>
+  struct has_init_function
+    : std::false_type
+  { };
 
-  template< class F >
-  struct has_init_function< F , NO_TAG_NOT_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( ValueType & ) const );
+  template <class F, class ValueType>
+  struct has_init_function<F, void, ValueType&>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void init( F const * const f , ValueType * dst )
+      { f->init( *dst ); }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( ValueType & ) );
+  template <class F, class ValueType>
+  struct has_init_function<F, void, ValueType*>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void init( F const * const f , ValueType * dst )
+      { f->init( dst ); }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void init( F const * const f , ValueType * dst )
-        { f->init( *dst ); }
-    };
+  template <class F, class Tag, class ValueType>
+  struct has_init_function<F, Tag, ValueType&>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void init( F const * const f , ValueType* dst )
+      { f->init( Tag(), *dst ); }
+  };
 
-  template< class F >
-  struct has_init_function< F , NO_TAG_IS_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( ValueType * ) const );
+  template <class F, class Tag, class ValueType>
+  struct has_init_function<F, Tag, ValueType*>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void init( F const * const f , ValueType * dst )
+      { f->init(Tag(), dst ); }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( ValueType * ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void init( F const * const f , ValueType * dst )
-        { f->init( dst ); }
-    };
-
-  template< class F >
-  struct has_init_function< F , HAS_TAG_NOT_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag , ValueType & ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag const & , ValueType & ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag , ValueType & ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag const & , ValueType & ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void init( F const * const f , ValueType * dst )
-        { f->init( WTag(), *dst ); }
-    };
-
-  template< class F >
-  struct has_init_function< F , HAS_TAG_IS_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag , ValueType * ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag const & , ValueType * ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag , ValueType * ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag const & , ValueType * ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void init( F const * const f , ValueType * dst )
-        { f->init( WTag(), dst ); }
-    };
-
-  template< class F   = Functor
-          , INTERFACE = DEDUCED
-          , typename  = void >
+  template <class F, class ReferenceType, typename = void>
   struct DeduceInit
-    {
-      enum { value = false };
+  {
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
+    enum { value = false };
 
-      KOKKOS_INLINE_FUNCTION static
-      void init( F const * const , ValueType * dst ) { new(dst) ValueType(); }
-    };
+    KOKKOS_INLINE_FUNCTION static
+    void init( F const * const , ValueType * dst ) { new(dst) ValueType(); }
+  };
 
-  template< class F >
-  struct DeduceInit< F , DISABLE , void >
-    {
-      enum { value = false };
+  template <class F, class ReferenceType>
+  struct DeduceInit<
+    F, ReferenceType,
+    typename std::enable_if<
+      !std::is_same<PatternInterface, REDUCE>::value
+    >::type
+  >
+  {
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
+    enum { value = false };
 
-      KOKKOS_INLINE_FUNCTION static
-      void init( F const * const , ValueType * ) {}
-    };
+    KOKKOS_INLINE_FUNCTION static
+    void init( F const * const , ValueType * ) {}
+  };
 
-  template< class F , INTERFACE I >
-  struct DeduceInit< F , I ,
-    decltype( has_init_function<F,I>::enable_if( & F::init ) ) >
-    : public has_init_function<F,I>
+  template <class F, class ReferenceType>
+  struct DeduceInit<
+    F, ReferenceType,
+    typename std::enable_if<has_init_function<F, WTag, ReferenceType>::value>::type
+  > : public has_init_function<F, WTag, ReferenceType>
     { enum { value = true }; };
 
   //----------------------------------------
 
-  template< class , INTERFACE >
-  struct has_final_function ;
+  template <class, class Tag, class ReferenceType>
+  struct has_final_function
+    : std::false_type
+  { };
 
   // No tag, not array
-  template< class F >
-  struct has_final_function< F , NO_TAG_NOT_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( ValueType & ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( ValueType & ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void final( F const * const f , ValueType * dst )
-        { f->final( *dst ); }
-    };
+  template <class F, class ValueType>
+  struct has_final_function<F, void, ValueType&>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void final( F const * const f , ValueType * dst )
+      { f->final( *dst ); }
+  };
 
   // No tag, is array
-  template< class F >
-  struct has_final_function< F , NO_TAG_IS_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( ValueType * ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( ValueType * ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void final( F const * const f , ValueType * dst )
-        { f->final( dst ); }
-    };
+  template <class F, class ValueType>
+  struct has_final_function<F, void, ValueType*>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void final( F const * const f , ValueType * dst )
+      { f->final( dst ); }
+  };
 
   // Has tag, not array
-  template< class F >
-  struct has_final_function< F , HAS_TAG_NOT_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag , ValueType & ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag const & , ValueType & ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag , ValueType & ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag const & , ValueType & ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void final( F const * const f , ValueType * dst )
-        { f->final( WTag(), *dst ); }
-    };
+  template <class F, class Tag, class ValueType>
+  struct has_final_function< F , Tag, ValueType& >
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void final( F const * const f , ValueType * dst )
+      { f->final( WTag(), *dst ); }
+  };
 
   // Has tag, is array
-  template< class F >
-  struct has_final_function< F , HAS_TAG_IS_ARRAY >
-    {
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag , ValueType * ) const );
+  template <class F, class Tag, class ValueType>
+  struct has_final_function<F, Tag, ValueType*>
+    : std::true_type
+  {
+    KOKKOS_INLINE_FUNCTION static
+    void final( F const * const f , ValueType * dst )
+      { f->final( WTag(), dst ); }
+  };
 
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (F::*)( WTag const & , ValueType * ) const );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag , ValueType * ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void enable_if( void (*)( WTag const & , ValueType * ) );
-
-      KOKKOS_INLINE_FUNCTION static
-      void final( F const * const f , ValueType * dst )
-        { f->final( WTag(), dst ); }
-    };
-
-  template< class F   = Functor
-          , INTERFACE = DEDUCED
-          , typename  = void >
+  template <class F, class ReferenceType, typename = void>
   struct DeduceFinal
-    {
-      enum { value = false };
+  {
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
+    enum { value = false };
 
-      KOKKOS_INLINE_FUNCTION
-      static void final( F const * const , ValueType * ) {}
-    };
+    KOKKOS_INLINE_FUNCTION
+    static void final( F const * const , ValueType * ) {}
+  };
 
-  template< class F , INTERFACE I >
-  struct DeduceFinal< F , I ,
-    decltype( has_final_function<F,I>::enable_if( & F::final ) ) >
-    : public has_final_function<F,I>
-    { enum { value = true }; };
+  template <class F, class ReferenceType>
+  struct DeduceFinal<
+    F, ReferenceType,
+    typename std::enable_if<
+      std::is_same<PatternInterface, FOR>::value
+    >::type
+  >
+  {
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
+    enum { value = false };
+
+    KOKKOS_INLINE_FUNCTION static
+    void final(F const * const, ValueType*) {}
+  };
+
+  template <class F, class ReferenceType>
+  struct DeduceFinal<
+    F, ReferenceType,
+    typename std::enable_if<
+      !std::is_same<PatternInterface, FOR>::value
+      && has_final_function<F, WTag, ReferenceType>::value
+    >::type
+  > : public has_final_function<F, WTag, ReferenceType>
+  { };
 
   //----------------------------------------
+
+  // TODO update this
 
   template< class F = Functor , typename = void >
   struct DeduceTeamShmem
@@ -741,45 +711,45 @@ public:
 
   //----------------------------------------
 
-  enum { has_join_member_function  = DeduceJoin<>::value };
-  enum { has_init_member_function  = DeduceInit<>::value };
-  enum { has_final_member_function = DeduceFinal<>::value };
-
-
-  template< class MemorySpace = typename execution_space::memory_space >
+  template<class ReferenceType, class MemorySpace = typename execution_space::memory_space >
   struct Reducer
   {
   private:
+
+    using ValueType = typename std::remove_reference<typename std::remove_pointer<ReferenceType>::type>::type;
+    static constexpr auto candidate_is_array = std::is_pointer<ReferenceType>::value;
 
     Functor const * const m_functor ;
     ValueType     * const m_result ;
 
     template< bool IsArray >
     KOKKOS_INLINE_FUNCTION constexpr
-    typename std::enable_if< IsArray , FunctorAnalysis::ValueType * >::type
+    typename std::enable_if<std::is_pointer<ReferenceType>::value, ValueType*>::type
     ref() const noexcept { return m_result ; }
 
     template< bool IsArray >
     KOKKOS_INLINE_FUNCTION constexpr
-    typename std::enable_if< ! IsArray , FunctorAnalysis::ValueType & >::type
+    typename std::enable_if<!std::is_pointer<ReferenceType>::value, ValueType&>::type
     ref() const noexcept { return *m_result ; }
 
     template< bool IsArray >
     KOKKOS_INLINE_FUNCTION constexpr
-    typename std::enable_if< IsArray , int >::type
+    typename std::enable_if<std::is_pointer<ReferenceType>::value, int>::type
     len() const noexcept { return m_functor->value_count ; }
 
     template< bool IsArray >
     KOKKOS_INLINE_FUNCTION constexpr
-    typename std::enable_if< ! IsArray , int >::type
-    len() const noexcept { return candidate_is_void ? 0 : 1 ; }
+    typename std::enable_if<!std::is_pointer<ReferenceType>::value, int>::type
+    len() const noexcept {
+      return std::is_void<ValueType>::value ? 0 : 1;
+    }
 
   public:
 
     using reducer        = Reducer ;
-    using value_type     = FunctorAnalysis::value_type ;
+    using value_type     = ValueType;
     using memory_space   = MemorySpace ;
-    using reference_type = FunctorAnalysis::reference_type ;
+    using reference_type = ReferenceType;
     using functor_type   = Functor ; // Adapts a functor
 
     KOKKOS_INLINE_FUNCTION constexpr
@@ -801,15 +771,15 @@ public:
     KOKKOS_INLINE_FUNCTION
     void join( ValueType volatile * dst
              , ValueType volatile const * src ) const noexcept
-      { DeduceJoin<>::join( m_functor , dst , src ); }
+      { DeduceJoin<Functor, ReferenceType>::join( m_functor , dst , src ); }
 
     KOKKOS_INLINE_FUNCTION 
     void init( ValueType * dst ) const noexcept
-      { DeduceInit<>::init( m_functor , dst ); }
+      { DeduceInit<Functor, ReferenceType>::init( m_functor , dst ); }
 
     KOKKOS_INLINE_FUNCTION
     void final( ValueType * dst ) const noexcept
-      { DeduceFinal<>::final( m_functor , dst ); }
+      { DeduceFinal<Functor, ReferenceType>::final( m_functor , dst ); }
 
     Reducer( Reducer const & ) = default ;
     Reducer( Reducer && ) = default ;

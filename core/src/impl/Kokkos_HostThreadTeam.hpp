@@ -1064,7 +1064,7 @@ parallel_reduce
 
 //----------------------------------------------------------------------------
 
-template< typename iType, class Closure, class Member >
+template<typename ValueType, typename iType, class Closure, class Member >
 KOKKOS_INLINE_FUNCTION
 typename std::enable_if<
   Impl::is_host_thread_team_member<Member>::value
@@ -1076,11 +1076,7 @@ parallel_scan
 {
   // Extract ValueType from the closure
 
-  using value_type =
-    typename Kokkos::Impl::FunctorAnalysis
-      < Kokkos::Impl::FunctorPatternInterface::SCAN
-      , void
-      , Closure >::value_type ;
+  using value_type = ValueType;
 
   value_type accum = 0 ;
 
@@ -1102,7 +1098,7 @@ parallel_scan
 }
 
 
-template< typename iType, class ClosureType, class Member >
+template<typename ValueType, typename iType, class ClosureType, class Member >
 KOKKOS_INLINE_FUNCTION
 typename std::enable_if<
   Impl::is_host_thread_team_member<Member>::value
@@ -1112,11 +1108,7 @@ parallel_scan
   , ClosureType const & closure
   )
 {
-  using value_type = typename
-    Kokkos::Impl::FunctorAnalysis
-      < Impl::FunctorPatternInterface::SCAN
-      , void
-      , ClosureType >::value_type ;
+  using value_type = ValueType;
 
   value_type scan_val = value_type();
 
