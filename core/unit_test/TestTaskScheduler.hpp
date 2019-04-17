@@ -47,6 +47,7 @@
 #include <Kokkos_Macros.hpp>
 #if defined( KOKKOS_ENABLE_TASKDAG )
 #include <Kokkos_Core.hpp>
+#include <impl/Kokkos_FixedBufferMemoryPool.hpp>
 #include <cstdio>
 #include <iostream>
 #include <cmath>
@@ -813,6 +814,29 @@ TEST_F( TEST_CATEGORY, task_fib_new )
     TestTaskScheduler::TestFib< Kokkos::TaskScheduler<TEST_EXECSPACE> >::run( i , ( i + 1 ) * ( i + 1 ) * 2000 );
   }
 }
+
+TEST_F( TEST_CATEGORY, task_fib_new_fixed )
+{
+  const int N = 27 ;
+  for ( int i = 0; i < N; ++i ) {
+    TestTaskScheduler::TestFib<
+      Kokkos::SimpleTaskScheduler<
+        TEST_EXECSPACE,
+        Kokkos::Impl::SingleTaskQueue<
+          TEST_EXECSPACE,
+          Kokkos::Impl::default_tasking_memory_space_for_execution_space_t<TEST_EXECSPACE>,
+          Kokkos::Impl::TaskQueueTraitsLockBased,
+          Kokkos::Impl::FixedBlockSizeMemoryPool<
+            Kokkos::Device<TEST_EXECSPACE, Kokkos::Impl::default_tasking_memory_space_for_execution_space_t<TEST_EXECSPACE>>,
+            128,
+            16
+          >
+        >
+      >
+    >::run( i , ( i + 1 ) * ( i + 1 ) * 2000 );
+  }
+}
+
 
 TEST_F( TEST_CATEGORY, task_fib_new_multiple )
 {
