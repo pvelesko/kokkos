@@ -833,16 +833,37 @@ TEST_F( TEST_CATEGORY, task_fib_new_fixed )
           >
         >
       >
-    >::run( i , ( i + 1 ) * ( i + 1 ) * 2000 );
+    >::run( i , ( i + 1 ) * ( i + 1 ) * 128000 );
   }
 }
-
 
 TEST_F( TEST_CATEGORY, task_fib_new_multiple )
 {
   const int N = 27 ;
   for ( int i = 0; i < N; ++i ) {
     TestTaskScheduler::TestFib< Kokkos::TaskSchedulerMultiple<TEST_EXECSPACE> >::run( i , ( i + 1 ) * ( i + 1 ) * 64000 );
+  }
+}
+
+TEST_F( TEST_CATEGORY, task_fib_new_multiple_fixed )
+{
+  const int N = 27 ;
+  for ( int i = 0; i < N; ++i ) {
+    TestTaskScheduler::TestFib<
+      Kokkos::SimpleTaskScheduler<
+        TEST_EXECSPACE,
+        Kokkos::Impl::MultipleTaskQueue<
+          TEST_EXECSPACE,
+          Kokkos::Impl::default_tasking_memory_space_for_execution_space_t<TEST_EXECSPACE>,
+          Kokkos::Impl::TaskQueueTraitsLockBased,
+          Kokkos::Impl::FixedBlockSizeMemoryPool<
+            Kokkos::Device<TEST_EXECSPACE, Kokkos::Impl::default_tasking_memory_space_for_execution_space_t<TEST_EXECSPACE>>,
+            128,
+            16
+          >
+        >
+      >
+    >::run( i , ( i + 1 ) * ( i + 1 ) * 128000 );
   }
 }
 
