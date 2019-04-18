@@ -186,7 +186,6 @@ public:
     // can't do that with static constexpr variables.
     auto* const lock_tag = (node_type*)base_t::LockTag;
 
-    // TODO @tasking @memory_order DSH shouldn't this be a relaxed atomic load?
     // start with the return value equal to the head
     auto* rv = this->m_head;
 
@@ -356,10 +355,10 @@ public:
     auto* const consumed_tag = (node_type*)ConsumedTag;
 
     // Swap the Consumed tag into the head of the queue:
-    Kokkos::memory_fence();
 
     // (local variable used for assertion only)
     // TODO @tasking @memory_order DSH this should have memory order release, I think
+    Kokkos::memory_fence();
     auto old_head = Kokkos::atomic_exchange(&(this->m_head), consumed_tag);
 
     // Assert that the queue wasn't consumed before this
