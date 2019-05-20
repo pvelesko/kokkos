@@ -59,11 +59,19 @@
 #include <impl/Kokkos_Profiling_Interface.hpp>
 #endif
 
+#ifdef KOKKOS_ENABLE_CUDA
+   #include <Kokkos_ResCudaSpace.hpp>
+#endif
+
+
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
 namespace Kokkos {
 namespace Impl {
+
+
+
 
 template< unsigned I , size_t ... Args >
 struct variadic_size_t
@@ -2320,7 +2328,7 @@ struct ViewDataHandle< Traits ,
                             &&
                             std::is_same< typename Traits::specialize , void >::value
                             &&
-                            Traits::memory_traits::is_atomic
+                            Traits::memory_traits::Atomic
                           )>::type >
 {
   typedef typename Traits::value_type  value_type ;
@@ -2349,16 +2357,16 @@ struct ViewDataHandle< Traits ,
   typename std::enable_if<(
                             std::is_same< typename Traits::specialize , void >::value
                             &&
-                            (!Traits::memory_traits::is_aligned)
+                            (!Traits::memory_traits::Aligned)
                             &&
-                            Traits::memory_traits::is_restrict
+                            Traits::memory_traits::Restrict
 #ifdef KOKKOS_ENABLE_CUDA
                             &&
                             (!( std::is_same< typename Traits::memory_space,Kokkos::CudaSpace>::value ||
                                 std::is_same< typename Traits::memory_space,Kokkos::CudaUVMSpace>::value ))
 #endif
                             &&
-                            (!Traits::memory_traits::is_atomic)
+                            (!Traits::memory_traits::Atomic)
                           )>::type >
 {
   typedef typename Traits::value_type  value_type ;
@@ -2386,16 +2394,16 @@ struct ViewDataHandle< Traits ,
   typename std::enable_if<(
                             std::is_same< typename Traits::specialize , void >::value
                             &&
-                            Traits::memory_traits::is_aligned
+                            Traits::memory_traits::Aligned
 			    &&
-                            (!Traits::memory_traits::is_restrict)
+                            (!Traits::memory_traits::Restrict)
 #ifdef KOKKOS_ENABLE_CUDA
                             &&
                             (!( std::is_same< typename Traits::memory_space,Kokkos::CudaSpace>::value ||
                                 std::is_same< typename Traits::memory_space,Kokkos::CudaUVMSpace>::value ))
 #endif
                             &&
-                            (!Traits::memory_traits::is_atomic)
+                            (!Traits::memory_traits::Atomic)
                           )>::type >
 {
   typedef typename Traits::value_type  value_type ;
@@ -2429,16 +2437,16 @@ struct ViewDataHandle< Traits ,
   typename std::enable_if<(
                             std::is_same< typename Traits::specialize , void >::value
                             &&
-                            Traits::memory_traits::is_aligned
+                            Traits::memory_traits::Aligned
                             &&
-                            Traits::memory_traits::is_restrict
+                            Traits::memory_traits::Restrict
 #ifdef KOKKOS_ENABLE_CUDA
                             &&
                             (!( std::is_same< typename Traits::memory_space,Kokkos::CudaSpace>::value ||
                                 std::is_same< typename Traits::memory_space,Kokkos::CudaUVMSpace>::value ))
 #endif
                             &&
-                            (!Traits::memory_traits::is_atomic)
+                            (!Traits::memory_traits::Atomic)
                           )>::type >
 {
   typedef typename Traits::value_type  value_type ;
@@ -2486,12 +2494,53 @@ namespace Impl {
  */
 template< class ExecSpace
         , class ValueType
+        , class MemorySpace
+        , class Enable = void
         , bool IsScalar = std::is_scalar< ValueType >::value
         >
 struct ViewValueFunctor ;
 
-template< class ExecSpace , class ValueType >
-struct ViewValueFunctor< ExecSpace , ValueType , false /* is_scalar */ >
+template< class ExecSpace , class ValueType , class MemorySpace >
+struct ViewValueFunctor< ExecSpace , ValueType , MemorySpace , 
+           typename std::enable_if< Kokkos::is_file_space_type<MemorySpace>::value, void >::type , false >
+{
+
+  ViewValueFunctor() = default ;
+  ViewValueFunctor( const ViewValueFunctor & ) = default ;
+  ViewValueFunctor & operator = ( const ViewValueFunctor & ) = default ;
+
+  ViewValueFunctor( ExecSpace   const & arg_space
+                  , ValueType * const arg_ptr
+                  , size_t      const arg_n )
+    {}
+
+  void construct_shared_allocation() {}
+
+  void destroy_shared_allocation() {}
+};
+
+template< class ExecSpace , class ValueType , class MemorySpace >
+struct ViewValueFunctor< ExecSpace , ValueType , MemorySpace , 
+           typename std::enable_if< Kokkos::is_file_space_type <MemorySpace>::value, void >::type , true >
+{
+
+  ViewValueFunctor() = default ;
+  ViewValueFunctor( const ViewValueFunctor & ) = default ;
+  ViewValueFunctor & operator = ( const ViewValueFunctor & ) = default ;
+
+  ViewValueFunctor( ExecSpace   const & arg_space
+                  , ValueType * const arg_ptr
+                  , size_t      const arg_n )
+    {}
+
+  void construct_shared_allocation() {}
+
+  void destroy_shared_allocation() {}
+};
+
+template< class ExecSpace , class ValueType, class MemorySpace >
+struct ViewValueFunctor< ExecSpace , ValueType , MemorySpace , 
+           typename std::enable_if< !Kokkos::is_file_space_type <MemorySpace>::value, void >::type , false >
 {
   typedef Kokkos::RangePolicy< ExecSpace > PolicyType ;
   typedef typename ExecSpace::execution_space Exec;
@@ -2554,8 +2603,9 @@ struct ViewValueFunctor< ExecSpace , ValueType , false /* is_scalar */ >
 };
 
 
-template< class ExecSpace , class ValueType >
-struct ViewValueFunctor< ExecSpace , ValueType , true /* is_scalar */ >
+template< class ExecSpace , class ValueType , class MemorySpace >
+struct ViewValueFunctor< ExecSpace , ValueType , MemorySpace , 
+           typename std::enable_if< !Kokkos::is_file_space_type <MemorySpace>::value, void >::type , true >
 {
   typedef Kokkos::RangePolicy< ExecSpace > PolicyType ;
 
@@ -2841,7 +2891,7 @@ public:
     typedef typename alloc_prop::execution_space  execution_space ;
     typedef typename Traits::memory_space         memory_space ;
     typedef typename Traits::value_type           value_type ;
-    typedef ViewValueFunctor< execution_space , value_type > functor_type ;
+    typedef ViewValueFunctor< execution_space , value_type , memory_space > functor_type ;
     typedef Kokkos::Impl::SharedAllocationRecord< memory_space , functor_type > record_type ;
 
     // Query the mapping for byte-size of allocation.
@@ -2887,6 +2937,47 @@ public:
 
     return record ;
   }
+
+  //----------------------------------------
+  /*  Allocate and construct mapped array.
+   *  Allocate via shared allocation record and
+   *  return that record for allocation tracking.
+   */
+  template< class mem_space >
+  typename std::enable_if< !Kokkos::Impl::is_resilient_space< mem_space >::value, Kokkos::Impl::SharedAllocationRecord<> * >::type
+  duplicate_shared( Kokkos::Impl::SharedAllocationRecord< mem_space , void >* orig_rec )  { 
+     return orig_rec;
+  }
+
+  template< class mem_space >
+  typename std::enable_if< Kokkos::Impl::is_resilient_space< mem_space >::value, Kokkos::Impl::SharedAllocationRecord<> * >::type
+  duplicate_shared( Kokkos::Impl::SharedAllocationRecord< mem_space , void >* orig_rec )  {
+
+     typedef Kokkos::Impl::SharedAllocationRecord< mem_space , void > record_type ;
+
+     std::string label = orig_rec->get_label();
+     printf("allocating duplicate record: %s \n", label.c_str());
+
+     // Create shared memory tracking record with allocate memory from the memory space
+     record_type * const record =
+       record_type::allocate( orig_rec->get_space()
+                           , label
+                           , orig_rec->size() );
+
+     m_impl_handle = handle_type( reinterpret_cast< pointer_type >( record->data() ) );
+
+     printf("copy duplicate record: %s \n", label.c_str());
+     Kokkos::Impl::DeepCopy<mem_space, mem_space, 
+                             typename mem_space::execution_space> 
+              ( m_impl_handle, orig_rec->data(), orig_rec->size() );
+
+     printf("track duplicate record: %s \n", label.c_str());
+     //Kokkos::ResCudaSpace::template track_duplicate<typename Traits::value_type>(orig_rec, record);
+     Kokkos::Experimental::template track_duplicate<typename Traits::value_type, mem_space>(orig_rec, record);
+
+     return record ;
+   }
+
 };
 
 //----------------------------------------------------------------------------
@@ -2956,8 +3047,7 @@ private:
     };
 
 public:
-  enum { is_assignable_data_type = is_assignable_value_type &&
-                                   is_assignable_dimension };
+
   enum { is_assignable = is_assignable_space &&
                          is_assignable_value_type &&
                          is_assignable_dimension &&
@@ -3054,8 +3144,7 @@ private:
                            , typename SrcTraits::dimension >::value };
 
 public:
-  enum { is_assignable_data_type = is_assignable_value_type &&
-                                   is_assignable_dimension };
+
   enum { is_assignable = is_assignable_space &&
                          is_assignable_value_type &&
                          is_assignable_dimension };
@@ -3491,7 +3580,7 @@ void view_verify_operator_bounds
 #if defined( KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST )
     enum { LEN = 1024 };
     char buffer[ LEN ];
-    const std::string label = tracker.template get_label<MemorySpace>();
+    const std::string label = tracker.get_label();
     int n = snprintf(buffer,LEN,"View bounds error of view %s (",label.c_str());
     view_error_operator_bounds<0>( buffer + n , LEN - n , map , args ... );
     Kokkos::Impl::throw_runtime_exception(std::string(buffer));

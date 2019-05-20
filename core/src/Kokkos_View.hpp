@@ -48,6 +48,9 @@
 #include <string>
 #include <algorithm>
 #include <initializer_list>
+#include <stdio.h>
+#include <stdlib.h>
+#include <cstdio>
 
 #include <Kokkos_Core_fwd.hpp>
 #include <Kokkos_HostSpace.hpp>
@@ -64,6 +67,7 @@
 namespace Kokkos {
 namespace Impl {
 
+
 template< class DataType >
 struct ViewArrayAnalysis ;
 
@@ -74,11 +78,7 @@ template< class DataType , class ArrayLayout
 struct ViewDataAnalysis ;
 
 template< class , class ... >
-class ViewMapping {
-  public:
-  enum { is_assignable_data_type = false };
-  enum { is_assignable = false };
-};
+class ViewMapping { public: enum { is_assignable = false }; };
 
 
 
@@ -391,8 +391,8 @@ public:
   typedef typename MemorySpace::size_type  size_type ;
 
   enum { is_hostspace      = std::is_same< MemorySpace , HostSpace >::value };
-  enum { is_managed        = MemoryTraits::is_unmanaged    == 0 };
-  enum { is_random_access  = MemoryTraits::is_random_access == 1 };
+  enum { is_managed        = MemoryTraits::Unmanaged    == 0 };
+  enum { is_random_access  = MemoryTraits::RandomAccess == 1 };
 
   //------------------------------------
 };
@@ -581,9 +581,21 @@ public:
 
 private:
 
-  typedef Kokkos::Impl::ViewMapping< traits , typename traits::specialize > map_type ;
-  typedef Kokkos::Impl::SharedAllocationTracker      track_type ;
+   
 
+  typedef Kokkos::Impl::ViewMapping< traits , typename traits::specialize > map_type ;
+//  typedef typename Kokkos::Impl::if_c< std::is_same<typename traits::memory_space,Kokkos::ResCudaSpace >::value,
+//                                       Kokkos::Impl::SpecializedAllocationTracker<typename traits::memory_space>,
+//                                       Kokkos::Impl::SharedAllocationTracker >::type       track_type ;
+//  typedef typename Kokkos::Impl::if_c< std::is_same<typename traits::memory_space,Kokkos::ResCudaSpace >::value,
+//                                       Kokkos::Impl::SharedAllocationRecord<typename traits::memory_space, void>,
+//                                       Kokkos::Impl::SharedAllocationRecord<> >::type       shared_record_type ;
+
+
+
+  typedef Kokkos::Impl::SharedAllocationRecord<>  shared_record_type;
+  typedef Kokkos::Impl::SharedAllocationTracker   track_type;
+//  typedef Kokkos::Impl::SpecializedAllocationTracker<typename traits::memory_space> track_type;
   track_type  m_track ;
   map_type    m_map ;
 
@@ -622,6 +634,7 @@ public:
                 typename traits::array_layout ,
                 typename traits::host_mirror_space >
     host_mirror_type ;
+
 
   /** \brief Unified types */
   typedef typename Impl::ViewUniformType<View,0>::type uniform_type;
@@ -1972,10 +1985,25 @@ public:
   ~View() {}
 
   KOKKOS_INLINE_FUNCTION
-  View() : m_track(), m_map() {}
+  View() : m_track(), m_map() {  }
 
   KOKKOS_INLINE_FUNCTION
-  View( const View & rhs ) : m_track( rhs.m_track, traits::is_managed ), m_map( rhs.m_map ) {}
+  View( const View & rhs ) : m_track( rhs.m_track, traits::is_managed ), m_map( rhs.m_map ) {
+
+// This shouldn't and can't be run in cuda device 
+#if !defined(__CUDA_ARCH__)
+   typedef typename traits::device_type::memory_space specialized_memory_space;
+   if ( Kokkos::Impl::is_resilient_space< specialized_memory_space >::value &&
+        Kokkos::Impl::SharedAllocationRecord<void,void>::duplicates_enabled() ) {
+      shared_record_type  *
+         record = reinterpret_cast<shared_record_type*>(m_map.duplicate_shared( m_track.template get_record<specialized_memory_space>() ));
+
+       // Setup and initialization complete, start tracking
+       m_track.assign_allocated_record_to_uninitialized( record );
+     }
+#endif
+
+  }
 
   KOKKOS_INLINE_FUNCTION
   View( View && rhs ) : m_track( std::move(rhs.m_track) ), m_map( std::move(rhs.m_map) ) {}
@@ -1994,10 +2022,7 @@ public:
 
   template< class RT , class ... RP >
   KOKKOS_INLINE_FUNCTION
-  View( const View<RT,RP...> & rhs,
-        typename std::enable_if<Kokkos::Impl::ViewMapping<
-        traits , typename View<RT,RP...>::traits , typename traits::specialize >::is_assignable_data_type>::type* = 0
-     )
+  View( const View<RT,RP...> & rhs )
     : m_track( rhs.m_track , traits::is_managed )
     , m_map()
     {
@@ -2009,9 +2034,7 @@ public:
 
   template< class RT , class ... RP >
   KOKKOS_INLINE_FUNCTION
-  typename std::enable_if<Kokkos::Impl::ViewMapping<
-     traits , typename View<RT,RP...>::traits , typename traits::specialize >::is_assignable_data_type,
-     View>::type & operator = ( const View<RT,RP...> & rhs )
+  View & operator = ( const View<RT,RP...> & rhs )
     {
       typedef typename View<RT,RP...>::traits  SrcTraits ;
       typedef Kokkos::Impl::ViewMapping< traits , SrcTraits , typename traits::specialize >  Mapping ;
@@ -2054,9 +2077,11 @@ public:
   int use_count() const
     { return m_track.use_count(); }
 
-  inline
+  inline 
   const std::string label() const
-    { return m_track.template get_label< typename traits::memory_space >(); }
+    { 
+       return (std::string)m_track.get_label(); 
+    }
 
   //----------------------------------------
   // Allocation according to allocation properties and array layout
@@ -2111,7 +2136,7 @@ public:
       }
 
       // Copy the input allocation properties with possibly defaulted properties
-      alloc_prop prop_copy( arg_prop );
+      alloc_prop prop( arg_prop );
 
 //------------------------------------------------------------
 #if defined( KOKKOS_ENABLE_CUDA )
@@ -2121,22 +2146,23 @@ public:
       // Fence using the trait's executon space (which will be Kokkos::Cuda)
       // to avoid incomplete type errors from usng Kokkos::Cuda directly.
       if ( std::is_same< Kokkos::CudaUVMSpace , typename traits::device_type::memory_space >::value ) {
-        typename traits::device_type::memory_space::execution_space().fence();
+        traits::device_type::memory_space::execution_space::fence();
       }
 #endif
 //------------------------------------------------------------
 
-      Kokkos::Impl::SharedAllocationRecord<> *
-        record = m_map.allocate_shared( prop_copy , arg_layout );
+      shared_record_type  *
+        record = reinterpret_cast<shared_record_type*>(m_map.allocate_shared( prop , arg_layout ));
 
 //------------------------------------------------------------
 #if defined( KOKKOS_ENABLE_CUDA )
       if ( std::is_same< Kokkos::CudaUVMSpace , typename traits::device_type::memory_space >::value ) {
-        typename traits::device_type::memory_space::execution_space().fence();
+        traits::device_type::memory_space::execution_space::fence();
       }
 #endif
 //------------------------------------------------------------
 
+      
       // Setup and initialization complete, start tracking
       m_track.assign_allocated_record_to_uninitialized( record );
     }
@@ -2284,7 +2310,8 @@ public:
     : View( Impl::ViewCtorProp< std::string , Kokkos::Impl::WithoutInitializing_t >( arg_prop.label , Kokkos::WithoutInitializing )
           , arg_layout
           )
-    {}
+    {
+}
 
   explicit inline
   View( const ViewAllocateWithoutInitializing & arg_prop
@@ -2421,7 +2448,8 @@ public:
               reinterpret_cast<pointer_type>(
                 arg_space.get_shmem_aligned( map_type::memory_span( arg_layout ), sizeof(typename traits::value_type) ) ) )
          , arg_layout )
-    {}
+    {
+}
 
   explicit KOKKOS_INLINE_FUNCTION
   View( const typename traits::execution_space::scratch_memory_space & arg_space
@@ -2571,11 +2599,28 @@ namespace Impl {
 
 inline
 void shared_allocation_tracking_disable()
-{ Kokkos::Impl::SharedAllocationRecord<void,void>::tracking_disable(); }
+{ 
+   Kokkos::Impl::SharedAllocationRecord<void,void>::tracking_disable(); 
+}
 
 inline
 void shared_allocation_tracking_enable()
-{ Kokkos::Impl::SharedAllocationRecord<void,void>::tracking_enable(); }
+{ 
+   Kokkos::Impl::SharedAllocationRecord<void,void>::tracking_enable(); 
+}
+
+
+inline
+void shared_allocation_enable_duplicates()
+{ 
+   Kokkos::Impl::SharedAllocationRecord<void,void>::duplicates_enable(); 
+}
+
+inline
+void shared_allocation_disable_duplicates()
+{ 
+   Kokkos::Impl::SharedAllocationRecord<void,void>::duplicates_disable(); 
+}
 
 } /* namespace Impl */
 } /* namespace Kokkos */

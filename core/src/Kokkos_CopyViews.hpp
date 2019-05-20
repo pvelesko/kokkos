@@ -186,9 +186,9 @@ struct ViewFill<ViewType,Layout,ExecSpace,1,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::RangePolicy<ExecSpace,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-1D",policy_type(0,a.extent(0)),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -206,10 +206,10 @@ struct ViewFill<ViewType,Layout,ExecSpace,2,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-2D",
        policy_type({0,0},{a.extent(0),a.extent(1)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -227,10 +227,10 @@ struct ViewFill<ViewType,Layout,ExecSpace,3,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-3D",
        policy_type({0,0,0},{a.extent(0),a.extent(1),a.extent(2)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -248,10 +248,10 @@ struct ViewFill<ViewType,Layout,ExecSpace,4,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-4D",
        policy_type({0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),a.extent(3)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -269,10 +269,10 @@ struct ViewFill<ViewType,Layout,ExecSpace,5,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-5D",
        policy_type({0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),a.extent(3),a.extent(4)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -290,10 +290,10 @@ struct ViewFill<ViewType,Layout,ExecSpace,6,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-6D",
        policy_type({0,0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),a.extent(3),a.extent(4),a.extent(5)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -311,11 +311,11 @@ struct ViewFill<ViewType,Layout,ExecSpace,7,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-7D",
        policy_type({0,0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),a.extent(3),
                                   a.extent(5),a.extent(6)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -335,11 +335,11 @@ struct ViewFill<ViewType,Layout,ExecSpace,8,iType,KOKKOS_IMPL_COMPILING_LIBRARY>
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewFill(const ViewType& a_, typename ViewType::const_value_type& val_):a(a_),val(val_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewFill-8D",
        policy_type({0,0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(3),
                                   a.extent(5),a.extent(6),a.extent(7)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -437,10 +437,10 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,1,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::RangePolicy<ExecSpace,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-1D",
        policy_type(0,a.extent(0)),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -459,10 +459,10 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,2,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-2D",
        policy_type({0,0},{a.extent(0),a.extent(1)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -482,10 +482,10 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,3,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-3D",
        policy_type({0,0,0},{a.extent(0),a.extent(1),a.extent(2)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -505,11 +505,11 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,4,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-4D",
        policy_type({0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),
                               a.extent(3)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -530,11 +530,11 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,5,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-5D",
        policy_type({0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),
                                 a.extent(3),a.extent(4)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -555,11 +555,11 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,6,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-6D",
        policy_type({0,0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(2),
                                   a.extent(3),a.extent(4),a.extent(5)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -581,11 +581,11 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,7,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-7D",
        policy_type({0,0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(3),
                                   a.extent(4),a.extent(5),a.extent(6)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -607,11 +607,11 @@ struct ViewCopy<ViewTypeA,ViewTypeB,Layout,ExecSpace,8,iType,KOKKOS_IMPL_COMPILI
   typedef Kokkos::MDRangePolicy<ExecSpace,iterate_type,Kokkos::IndexType<iType>> policy_type;
 
   ViewCopy(const ViewTypeA& a_, const ViewTypeB& b_):a(a_),b(b_) {
-    ExecSpace().fence();
+    ExecSpace::fence();
     Kokkos::parallel_for("Kokkos::ViewCopy-8D",
        policy_type({0,0,0,0,0,0},{a.extent(0),a.extent(1),a.extent(3),
                                   a.extent(5),a.extent(6),a.extent(7)}),*this);
-    ExecSpace().fence();
+    ExecSpace::fence();
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -1450,9 +1450,10 @@ void deep_copy
     return;
   }
 
+if ( ! Kokkos::is_file_space_type<src_memory_space>::value && ! Kokkos::is_file_space_type<dst_memory_space>::value ) {
   if( ( ( (std::ptrdiff_t)dst_start < (std::ptrdiff_t)src_end ) && ( (std::ptrdiff_t)dst_end > (std::ptrdiff_t)src_start ) ) &&
       ( ( dst.span_is_contiguous() && src.span_is_contiguous() ))) {
-    std::string message("Error: Kokkos::deep_copy of overlapping views: ");
+    std::string message("Error: Kokkos::deep_copy of overlapping views A: ");
     message += dst.label(); message += "(";
     message += std::to_string((std::ptrdiff_t)dst_start); message += ",";
     message += std::to_string((std::ptrdiff_t)dst_end); message += ") ";
@@ -1461,6 +1462,7 @@ void deep_copy
     message += std::to_string((std::ptrdiff_t)src_end); message += ") ";
     Kokkos::Impl::throw_runtime_exception(message);
   }
+}
 
   // Check for same extents
   if ( (src.extent(0) != dst.extent(0)) ||
@@ -2335,10 +2337,10 @@ void deep_copy
                   typename ViewTraits<DT,DP...>::value_type >::value
     , "deep_copy requires non-const type" );
 
-  ExecSpace().fence();
+  ExecSpace::fence();
   typedef typename View<DT,DP...>::uniform_runtime_nomemspace_type ViewTypeUniform;
   Kokkos::Impl::ViewFill< ViewTypeUniform >( dst , value );
-  ExecSpace().fence();
+  ExecSpace::fence();
 }
 
 /** \brief  Deep copy into a value in Host memory from a view.  */
@@ -2491,9 +2493,10 @@ void deep_copy
   dst_value_type* dst_end   = dst.data() + dst.span();
   src_value_type* src_start = src.data();
   src_value_type* src_end   = src.data() + src.span();
+if ( ! Kokkos::is_file_space_type<src_memory_space>::value && ! Kokkos::is_file_space_type<dst_memory_space>::value ) {
   if( ( ( (std::ptrdiff_t)dst_start < (std::ptrdiff_t)src_end ) && ( (std::ptrdiff_t)dst_end > (std::ptrdiff_t)src_start ) ) &&
       ( ( dst.span_is_contiguous() && src.span_is_contiguous() ))) {
-    std::string message("Error: Kokkos::deep_copy of overlapping views: ");
+    std::string message("Error: Kokkos::deep_copy of overlapping views B: ");
     message += dst.label(); message += "(";
     message += std::to_string((std::ptrdiff_t)dst_start); message += ",";
     message += std::to_string((std::ptrdiff_t)dst_end); message += ") ";
@@ -2502,6 +2505,7 @@ void deep_copy
     message += std::to_string((std::ptrdiff_t)src_end); message += ") ";
     Kokkos::Impl::throw_runtime_exception(message);
   }
+}
 
   // Check for same extents
   if ( (src.extent(0) != dst.extent(0)) ||
@@ -2881,6 +2885,27 @@ create_mirror(const Space& , const Kokkos::View<T,P...> & src
                  std::is_same< typename ViewTraits<T,P...>::specialize , void >::value
                >::type * = 0) {
   return typename Impl::MirrorType<Space,T,P ...>::view_type(src.label(),src.layout());
+}
+
+// Create a mirror in a new space (specialization for different space)
+template<class Space, class T, class ... P>
+typename Impl::MirrorType<Space,T,P ...>::view_type
+create_chkpt_mirror(const Space& , const Kokkos::View<T,P...> & src
+             , typename std::enable_if<
+                 std::is_same< typename ViewTraits<T,P...>::specialize , void >::value
+               >::type * = 0) {
+  typedef typename Impl::MirrorType<Space,T,P ...>::view_type chkpt_mirror_type;
+  std::string sLabel = src.label();
+  if ( sLabel.length() == 0 ) {
+     char sTemp[32];
+     sprintf(sTemp, "view_%08x", (unsigned long)src.data());
+     sLabel = sTemp;
+     printf("WARNING: creating checkpoint mirror without a label...generating auto label: %s \n", sLabel.c_str());
+  }
+  chkpt_mirror_type chkpt(sLabel,src.layout());
+  Kokkos::Impl::SharedAllocationRecord<void,void>::track_mirror( Space::name(), sLabel, chkpt.data(), src.data() );
+
+  return chkpt;
 }
 
 template< class T , class ... P >
