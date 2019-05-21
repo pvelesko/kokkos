@@ -72,7 +72,7 @@ namespace Experimental {
          char * config = std::getenv( "KOKKOS_IO_CONFIG" );
          if (config != nullptr)
             path = config;
-         printf("loading IOConfigurationManager: %s\n", path.c_str());
+         // printf("loading IOConfigurationManager: %s\n", path.c_str());
          KokkosIOConfigurationManager::m_Inst->load_configuration(path);
       }
       return KokkosIOConfigurationManager::m_Inst;
