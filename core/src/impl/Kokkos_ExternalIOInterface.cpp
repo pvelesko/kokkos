@@ -21,6 +21,19 @@ namespace Experimental {
 
    }
 
+   // Create empty file...to prevent file access issues when writing / reading in parallel 
+   void KokkosIOAccessor::create_empty_file ( void * dst )  {
+
+      Kokkos::Impl::SharedAllocationHeader * pData = reinterpret_cast<Kokkos::Impl::SharedAllocationHeader*>(dst);
+      KokkosIOInterface * pDataII = reinterpret_cast<KokkosIOInterface*>(pData-1);
+      Kokkos::Experimental::KokkosIOAccessor * pAcc = pDataII->pAcc;
+
+      if (pAcc) {
+         //printf("calling openfile ...\n");
+         pAcc->OpenFile();   // virtual method implemented by specific IO interface
+      }
+   }
+
    // Copy from host memory space to designated IO buffer (dst is an instance of KokkosIOAccessor offset by SharedAllocationHeader)
    //                                                      src is the data() pointer from the souce view.
    void KokkosIOAccessor::transfer_from_host ( void * dst, const void * src, size_t size_ )  {

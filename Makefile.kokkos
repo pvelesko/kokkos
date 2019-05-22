@@ -400,7 +400,7 @@ ifneq ($(KOKKOS_CMAKE), yes)
   KOKKOS_CXXLDFLAGS = -L$(shell pwd)
 endif
 ifeq ($(KOKKOS_INTERNAL_USE_HDF5), 1)
-  KOKKOS_LIBS = -lhdf5
+  KOKKOS_LIBS += -lhdf5
 endif
 KOKKOS_LINK_FLAGS = 
 KOKKOS_SRC =

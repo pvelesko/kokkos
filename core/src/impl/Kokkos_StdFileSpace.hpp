@@ -109,6 +109,8 @@ public:
    virtual size_t ReadFile_impl(void * dest, const size_t dest_size);
    
    virtual size_t WriteFile_impl(const void * src, const size_t src_size);
+   
+   virtual size_t OpenFile_impl();
 
    void finalize();
    
@@ -177,6 +179,7 @@ public:
   static void restore_all_views(); 
   static void restore_view(const std::string name);
   static void checkpoint_views();
+  static void checkpoint_create_view_targets();
   static void set_default_path( const std::string path );
   static std::string s_default_path;
 

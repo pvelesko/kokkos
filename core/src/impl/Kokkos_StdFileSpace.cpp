@@ -55,6 +55,14 @@ namespace Experimental {
 
    }
 
+   size_t KokkosStdFileAccessor::OpenFile_impl() { 
+
+      open_file(KokkosStdFileAccessor::WRITE_FILE); 
+      close_file();
+
+   }
+
+
    bool KokkosStdFileAccessor::open_file( int read_write ) { 
       
       // printf("open_file: %s, %d\n", file_path.c_str(), read_write );
@@ -195,6 +203,25 @@ namespace Experimental {
       }
    }
   
+   void StdFileSpace::checkpoint_create_view_targets() {
+      typedef Kokkos::Impl::SharedAllocationRecord<void,void> base_record;
+      Kokkos::Impl::MirrorTracker * pList = base_record::get_filtered_mirror_list( (std::string)name() );
+      if (pList == nullptr) {
+         printf("memspace %s returned empty list of checkpoint views \n", name());
+      }
+      while (pList != nullptr) {
+         KokkosIOAccessor::create_empty_file(((base_record*)pList->dst)->data());
+         // delete the records along the way...
+         if (pList->pNext == nullptr) {
+            delete pList;
+            pList = nullptr;
+         } else {
+            pList = pList->pNext;
+            delete pList->pPrev;
+         }
+      }
+       
+   }
    void StdFileSpace::checkpoint_views() {
       typedef Kokkos::Impl::SharedAllocationRecord<void,void> base_record;
       Kokkos::Impl::MirrorTracker * pList = base_record::get_filtered_mirror_list( (std::string)name() );

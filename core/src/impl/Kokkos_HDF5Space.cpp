@@ -1,5 +1,6 @@
 #include "Kokkos_Core.hpp"
 #include "Kokkos_HDF5Space.hpp"
+#include "Kokkos_Macros.hpp"
 
 #ifdef KOKKOS_ENABLE_HDF5_PARALLEL
    #include "mpi.h"
@@ -122,6 +123,7 @@ namespace Experimental {
          local_block[i] = 1;
          data_extents[i] = 0;
          local_extents[i] = 0;
+         view_offset[i] = 0;
        }
        file_block[0] = data_size;
        local_block[0] = data_size;
@@ -129,7 +131,10 @@ namespace Experimental {
 #ifdef KOKKOS_ENABLE_HDF5_PARALLEL
        MPI_Comm_size( MPI_COMM_WORLD, &mpi_size );
        MPI_Comm_rank( MPI_COMM_WORLD, &mpi_rank);
+    //   printf("initializing parallel IO: %d, %d \n", mpi_size, mpi_rank);
+       fflush(stdout);
 #endif
+    //   printf("initializing HDF5 Accessor: %d, %d \n", mpi_size, mpi_rank);
        boost::property_tree::ptree l_config = config_.get_config()->get_child("Layout_Config");
        std::map<const std::string, size_t> var_list;
        var_list["DATA_SIZE"] = data_size;
@@ -155,6 +160,7 @@ namespace Experimental {
        config_.set_param_list( l_config, 0, "local_offset", local_offset, var_list );
        config_.set_param_list( l_config, 0, "local_stride", local_stride, var_list );
        config_.set_param_list( l_config, 0, "local_block", local_block, var_list );
+       config_.set_param_list( l_config, 0, "view_offset", view_offset, var_list );
 
        rank = l_config.get<int>("rank");
        data_set = l_config.get<std::string>("data_set");
@@ -162,16 +168,25 @@ namespace Experimental {
        m_is_initialized = true;
    }
 
-   int KokkosHDF5Accessor::open_file( ) { 
+   size_t KokkosHDF5Accessor::OpenFile_impl() { 
+    //  printf("HDF5 Accessor calling open_file \n");
+      open_file(true); 
+      close_file();
+   }
+
+   int KokkosHDF5Accessor::open_file(bool bForceCreate) { 
 
        std::string sFullPath = KokkosIOAccessor::resolve_path( file_path, Kokkos::Experimental::HDF5Space::s_default_path );
-       if (m_fid == 0  && !file_exists(sFullPath)) {
-          hid_t pid = H5Pcreate(H5P_FILE_ACCESS);
+
+       hid_t pid = H5Pcreate(H5P_FILE_ACCESS);
 #ifdef KOKKOS_ENABLE_HDF5_PARALLEL
-          if (m_layout != KokkosHDF5ConfigurationManager::LAYOUT_DEFAULT)
-             H5Pset_fapl_mpio( pid, MPI_COMM_WORLD, MPI_INFO_NULL );
+       if (m_layout != KokkosHDF5ConfigurationManager::LAYOUT_DEFAULT) {
+          //printf("set mpio api ...\n");
+          H5Pset_fapl_mpio( pid, MPI_COMM_WORLD, MPI_INFO_NULL );
+       }
 #endif
-        //  printf("creating HDF5 file: %s \n", sFullPath.c_str() );
+       if ((m_fid == 0  && !file_exists(sFullPath)) || bForceCreate) {
+          // printf("[%d] creating HDF5 file: %s \n", mpi_rank, sFullPath.c_str() );
           m_fid = H5Fcreate( sFullPath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, pid );
           H5Pclose(pid);
 
@@ -193,7 +208,8 @@ namespace Experimental {
           H5Pclose(pid);
           H5Sclose(fsid);
       } else if (m_fid == 0) {
-          m_fid = H5Fopen( sFullPath.c_str(), H5F_ACC_RDWR, H5P_DEFAULT );
+ //         printf("[%d] open existing HDF5 file: %s \n", mpi_rank, sFullPath.c_str());
+          m_fid = H5Fopen( sFullPath.c_str(), H5F_ACC_RDWR, pid );
           if (m_fid == 0) {
              printf("Error opening HDF5 file\n");
              return -1;
@@ -266,7 +282,7 @@ namespace Experimental {
                      
 //                     printf("[R] memory: %d, %d, %d, %d \n", local_offset[0], local_stride[0], local_count[0], local_block[0] );
                      status = H5Sselect_hyperslab(m_mid, H5S_SELECT_SET, local_offset, local_stride, local_count, local_block);
-                     status = H5Dread(m_did, H5T_NATIVE_CHAR, m_mid, fsid, H5P_DEFAULT, &ptr[0]);
+                     status = H5Dread(m_did, H5T_NATIVE_CHAR, m_mid, fsid, H5P_DEFAULT, &ptr[view_offset[0]]);
                      if (status == 0) {
                         int read_ = 1;
                         for (int r = 0; r < rank; r++) {
@@ -320,7 +336,7 @@ namespace Experimental {
 #endif
 
                      
-                     status = H5Dwrite(m_did, H5T_NATIVE_CHAR, m_mid, fsid, pid, &ptr[0]);
+                     status = H5Dwrite(m_did, H5T_NATIVE_CHAR, m_mid, fsid, pid, &ptr[view_offset[0]]);
                      if (status == 0) {
                         int written_ = 1;
                         for (int r = 0; r < rank; r++) {
@@ -435,6 +451,38 @@ namespace Experimental {
       }
    }
   
+   void HDF5Space::checkpoint_create_view_targets() {
+       int mpi_size = 1;
+       int mpi_rank = 0;
+#ifdef KOKKOS_ENABLE_HDF5_PARALLEL
+       MPI_Comm_size( MPI_COMM_WORLD, &mpi_size );
+       MPI_Comm_rank( MPI_COMM_WORLD, &mpi_rank);
+#endif
+       typedef Kokkos::Impl::SharedAllocationRecord<void,void> base_record;
+       Kokkos::Impl::MirrorTracker * pList = base_record::get_filtered_mirror_list( (std::string)name() );
+       if (pList == nullptr) {
+          printf("memspace %s returned empty list of checkpoint views \n", name());
+       }
+       while (pList != nullptr) {
+          printf("[%d] creating empty file: %s \n", mpi_rank, pList->label.c_str());
+          KokkosIOAccessor::create_empty_file(((base_record*)pList->dst)->data());
+          // delete the records along the way...
+          if (pList->pNext == nullptr) {
+            delete pList;
+             pList = nullptr;
+          } else {
+             pList = pList->pNext;
+             delete pList->pPrev;
+          }
+      }
+#ifdef KOKKOS_ENABLE_HDF5_PARALLEL
+      if (mpi_size > 1) {
+       //  printf("[%d] waiting for barrier \n", mpi_rank);
+         MPI_Barrier(MPI_COMM_WORLD);
+      }
+#endif
+   }
+
    void HDF5Space::checkpoint_views() {
       typedef Kokkos::Impl::SharedAllocationRecord<void,void> base_record;
       Kokkos::Impl::MirrorTracker * pList = base_record::get_filtered_mirror_list( (std::string)name() );
