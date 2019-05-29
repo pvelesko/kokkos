@@ -266,12 +266,12 @@ struct ViewTraits< typename std::enable_if< Kokkos::Impl::is_space<Space>::value
                  std::is_same< typename ViewTraits<void,Prop...>::array_layout    , void >::value
                , "Only one View Execution or Memory Space template argument" );
 
-  typedef typename Space::execution_space                   execution_space ;
-  typedef typename Space::memory_space                      memory_space ;
-  typedef typename Kokkos::Impl::HostMirror< Space >::Space HostMirrorSpace ;
-  typedef typename execution_space::array_layout            array_layout ;
-  typedef typename ViewTraits<void,Prop...>::memory_traits  memory_traits ;
-  typedef typename ViewTraits<void,Prop...>::specialize       specialize ;
+  typedef typename Space::execution_space                                 execution_space ;
+  typedef typename Space::memory_space                                    memory_space ;
+  typedef typename Kokkos::Impl::HostMirror< Space >::Space::memory_space HostMirrorSpace ;
+  typedef typename execution_space::array_layout                          array_layout ;
+  typedef typename ViewTraits<void,Prop...>::memory_traits                memory_traits ;
+  typedef typename ViewTraits<void,Prop...>::specialize                   specialize ;
 };
 
 template< class MemoryTraits , class ... Prop >
