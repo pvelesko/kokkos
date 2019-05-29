@@ -68,8 +68,6 @@ public:
    size_t file_offset;
    std::fstream file_strm;
 
-   enum { READ_FILE = 0,
-          WRITE_FILE = 1 };
 
    KokkosStdFileAccessor() : KokkosIOAccessor(),
                              file_offset(0) {

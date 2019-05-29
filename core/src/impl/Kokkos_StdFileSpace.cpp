@@ -57,7 +57,7 @@ namespace Experimental {
 
    size_t KokkosStdFileAccessor::OpenFile_impl() { 
 
-      open_file(KokkosStdFileAccessor::WRITE_FILE); 
+      open_file(KokkosIOAccessor::WRITE_FILE); 
       close_file();
 
    }
@@ -81,9 +81,9 @@ namespace Experimental {
       }
       // printf("opening file: %s, %d\n", sFullPath.c_str(), read_write );
 
-       if ( read_write == KokkosStdFileAccessor::WRITE_FILE ) {
+       if ( read_write == KokkosIOAccessor::WRITE_FILE ) {
             file_strm.open( sFullPath.c_str(), std::ios::out | std::ios::trunc | std::ios::binary );
-       } else if (read_write == KokkosStdFileAccessor::READ_FILE ) { 
+       } else if (read_write == KokkosIOAccessor::READ_FILE ) { 
             file_strm.open( sFullPath.c_str(), std::ios::in | std::ios::binary );
        } else {
             printf("open_file: incorrect read write parameter specified .\n");
@@ -97,7 +97,7 @@ namespace Experimental {
    size_t KokkosStdFileAccessor::ReadFile_impl(void * dest, const size_t dest_size) {
       size_t dataRead = 0;
       char* ptr = (char*)dest;
-      if (open_file(KokkosStdFileAccessor::READ_FILE)) {
+      if (open_file(KokkosIOAccessor::READ_FILE)) {
          // printf("reading file: %08x, %ld \n", (unsigned long)dest, dest_size);
          while ( !file_strm.eof() && dataRead < dest_size ) {
             file_strm.read( &ptr[dataRead], dest_size );
@@ -117,7 +117,7 @@ namespace Experimental {
    size_t KokkosStdFileAccessor::WriteFile_impl(const void * src, const size_t src_size) {
       size_t m_written = 0;
       char* ptr = (char*)src;
-      if (open_file(KokkosStdFileAccessor::WRITE_FILE) ) {
+      if (open_file(KokkosIOAccessor::WRITE_FILE) ) {
           file_strm.write(&ptr[0], src_size);
           if (!file_strm.fail())
              m_written = src_size;

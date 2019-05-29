@@ -170,64 +170,66 @@ namespace Experimental {
 
    size_t KokkosHDF5Accessor::OpenFile_impl() { 
     //  printf("HDF5 Accessor calling open_file \n");
-      open_file(true); 
+      open_file(KokkosIOAccessor::WRITE_FILE); 
       close_file();
    }
 
-   int KokkosHDF5Accessor::open_file(bool bForceCreate) { 
+   int KokkosHDF5Accessor::open_file(int read_write) { 
 
        std::string sFullPath = KokkosIOAccessor::resolve_path( file_path, Kokkos::Experimental::HDF5Space::s_default_path );
+       int nReturn = -1;
+
+       if (m_fid != 0) {
+          close_file();
+       }
 
        hid_t pid = H5Pcreate(H5P_FILE_ACCESS);
 #ifdef KOKKOS_ENABLE_HDF5_PARALLEL
        if (m_layout != KokkosHDF5ConfigurationManager::LAYOUT_DEFAULT) {
-          //printf("set mpio api ...\n");
+          //printf("[%d] set mpio api ...\n", mpi_rank);
           H5Pset_fapl_mpio( pid, MPI_COMM_WORLD, MPI_INFO_NULL );
        }
 #endif
-       if ((m_fid == 0  && !file_exists(sFullPath)) || bForceCreate) {
-          // printf("[%d] creating HDF5 file: %s \n", mpi_rank, sFullPath.c_str() );
+       // write file will always recreate it...
+       if (read_write == KokkosIOAccessor::WRITE_FILE) {
+          //printf("[%d] creating HDF5 file: %s \n", mpi_rank, sFullPath.c_str() );
           m_fid = H5Fcreate( sFullPath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, pid );
-          H5Pclose(pid);
 
           if (m_fid == 0) {
               printf("Error creating HDF5 file\n");
-              return -1;
+          } else {
+ 
+             //printf ("creating file set: %s, %d, %d, %d, %d \n", data_set.c_str(), rank, 
+             //          data_extents[0], data_extents[1], data_extents[2]);
+             hid_t fsid = H5Screate_simple(rank, data_extents, NULL);
+             m_did = H5Dcreate(m_fid, data_set.c_str(), H5T_NATIVE_CHAR, fsid, 
+                               H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
+             if (m_did == 0) {
+                 printf("Error creating file set\n");
+             } else {
+                nReturn = 0;
+             }
+             H5Sclose(fsid);
           }
-
-          //printf ("creating file set: %s, %d, %d, %d, %d \n", data_set.c_str(), rank, 
-          //          data_extents[0], data_extents[1], data_extents[2]);
-          hid_t fsid = H5Screate_simple(rank, data_extents, NULL);
-          pid = H5Pcreate(H5P_DATASET_CREATE);
-          m_did = H5Dcreate(m_fid, data_set.c_str(), H5T_NATIVE_CHAR, fsid, 
-                             H5P_DEFAULT, pid, H5P_DEFAULT );
-          if (m_did == 0) {
-              printf("Error creating file set\n");
-              return -1;
-          }
-          H5Pclose(pid);
-          H5Sclose(fsid);
-      } else if (m_fid == 0) {
- //         printf("[%d] open existing HDF5 file: %s \n", mpi_rank, sFullPath.c_str());
-          m_fid = H5Fopen( sFullPath.c_str(), H5F_ACC_RDWR, pid );
+      } else if (read_write == KokkosIOAccessor::READ_FILE) {
+          //printf("[%d] open existing HDF5 file: %s \n", mpi_rank, sFullPath.c_str());
+          m_fid = H5Fopen( sFullPath.c_str(), H5F_ACC_RDONLY, pid );
           if (m_fid == 0) {
              printf("Error opening HDF5 file\n");
-             return -1;
-          }
-          m_did = H5Dopen2(m_fid, data_set.c_str(), H5P_DEFAULT );
-          if (m_did == 0) {
-             printf("Error creating dataset\n");
-             return -1;
           } else {
-              int nFileOk = 0;
-              hid_t dtype  = H5Dget_type(m_did);
-              hid_t dspace = H5Dget_space(m_did);
-              int rank_ = H5Sget_simple_extent_ndims(dspace);
-              //printf("file opened for read: %s, %s, %d \n", sFullPath.c_str(), data_set.c_str(), rank_);
-              if ( H5Tequal(dtype, H5T_NATIVE_CHAR) > 0 && rank_ == rank ) {     
-                 hsize_t test_dims[4] = {0,0,0,0};
-                 herr_t status  = H5Sget_simple_extent_dims(dspace, test_dims, NULL);
-                 if (status != rank || 
+             m_did = H5Dopen2(m_fid, data_set.c_str(), H5P_DEFAULT );
+             if (m_did == 0) {
+                printf("Error creating dataset\n");
+             } else {
+                int nFileOk = 0;
+                hid_t dtype  = H5Dget_type(m_did);
+                hid_t dspace = H5Dget_space(m_did);
+                int rank_ = H5Sget_simple_extent_ndims(dspace);
+                //printf("file opened for read: %s, %s, %d \n", sFullPath.c_str(), data_set.c_str(), rank_);
+                if ( H5Tequal(dtype, H5T_NATIVE_CHAR) > 0 && rank_ == rank ) {     
+                   hsize_t test_dims[4] = {0,0,0,0};
+                   herr_t status  = H5Sget_simple_extent_dims(dspace, test_dims, NULL);
+                   if (status != rank || 
                      test_dims[0] != data_extents[0] && 
                      test_dims[1] != data_extents[1] && 
                      test_dims[2] != data_extents[2] && 
@@ -237,25 +239,26 @@ namespace Experimental {
                                                                                        (int)test_dims[2],
                                                                                        (int)test_dims[3] );
                      nFileOk = -1;
-                 }
-              } else {
-                 printf("HDF5: Datatype and rank don't match, %d, %d \n", (int)dtype, rank);
-                 nFileOk = -1;
-              }
+                   }
+                } else {
+                   printf("HDF5: Datatype and rank don't match, %d, %d \n", (int)dtype, rank);
+                   nFileOk = -1;
+                }
 
-              if (nFileOk != 0) {
-                  printf("HDF5: Existing file does not match requested attributes, \n");
-                  printf("HDF5: recreating file from scratch. \n");
-                  close_file();
-                  remove(sFullPath.c_str());
-                  return open_file();                  
-             }            
+                if (nFileOk != 0) {
+                   printf("HDF5: Existing file does not match requested attributes, \n");
+                   printf("HDF5: recreating file from scratch. \n");
+                   close_file();
+                } else {
+                   nReturn = 0;
+                }
+             }
           }
       } else {
-         printf("open_file: file handle already set: %s.\n", sFullPath.c_str());
+         printf("ERROR: invalid file access selected!!!\n");
       }
-
-      return 0;
+      H5Pclose(pid);
+      return nReturn;
 
    }
 
@@ -264,7 +267,7 @@ namespace Experimental {
       char* ptr = (char*)dest;
       hsize_t stepSize = dest_size;      
       //hsize_t stepSize = min(dest_size, chunk_size);      
-      if (open_file() == 0 && m_fid != 0) {
+      if (open_file(KokkosIOAccessor::READ_FILE) == 0 && m_fid != 0) {
 //           printf ("reading data set: %s, %d, %d, %d, %d \n", data_set.c_str(), rank, 
 //                     local_extents[0], local_extents[1], local_extents[2]);
             m_mid = H5Screate_simple(rank, local_extents, NULL);
@@ -310,7 +313,7 @@ namespace Experimental {
       size_t m_written = 0;
       hsize_t stepSize = src_size;
       char* ptr = (char*)src;
-      if (open_file() == 0 && m_fid != 0) {
+      if (open_file(KokkosIOAccessor::WRITE_FILE) == 0 && m_fid != 0) {
 //         printf ("[%d] creating data set: %s, %d, %d, %d, %d \n", mpi_rank, data_set.c_str(), rank, 
 //                   local_extents[0], local_extents[1], local_extents[2]);
 //         printf("[W,%d] hyperslab: %d, %d, %d, %d \n", mpi_rank, file_offset[0], file_stride[0], file_count[0], file_block[0] );
@@ -464,7 +467,7 @@ namespace Experimental {
           printf("memspace %s returned empty list of checkpoint views \n", name());
        }
        while (pList != nullptr) {
-          printf("[%d] creating empty file: %s \n", mpi_rank, pList->label.c_str());
+      //    printf("[%d] creating empty file: %s \n", mpi_rank, pList->label.c_str());
           KokkosIOAccessor::create_empty_file(((base_record*)pList->dst)->data());
           // delete the records along the way...
           if (pList->pNext == nullptr) {
@@ -477,7 +480,7 @@ namespace Experimental {
       }
 #ifdef KOKKOS_ENABLE_HDF5_PARALLEL
       if (mpi_size > 1) {
-       //  printf("[%d] waiting for barrier \n", mpi_rank);
+        // printf("[%d] waiting for barrier \n", mpi_rank);
          MPI_Barrier(MPI_COMM_WORLD);
       }
 #endif

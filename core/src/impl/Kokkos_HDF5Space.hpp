@@ -256,7 +256,7 @@ public:
                    const std::string & filepath, 
                    const std::string & dataset_name );
 
-   int open_file(bool bForceCreate = false);
+   int open_file(int read_write);
    void close_file();
    bool is_initialized() { return m_is_initialized; }
 

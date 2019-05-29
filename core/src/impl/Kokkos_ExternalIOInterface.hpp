@@ -24,6 +24,9 @@ namespace Experimental {
 class KokkosIOAccessor  {
 
 public:
+   enum { READ_FILE = 0,
+          WRITE_FILE = 1 };
+
    size_t data_size;   
    bool is_contiguous;
    std::string file_path;
