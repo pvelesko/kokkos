@@ -105,6 +105,7 @@ namespace Experimental {
        data_extents[0] = data_size;
        local_extents[0] = data_size;
        local_block[0] = data_size;
+       return 0;
    }
 
    int KokkosHDF5Accessor::initialize( const size_t size_, const std::string & filepath,
@@ -166,12 +167,14 @@ namespace Experimental {
        data_set = l_config.get<std::string>("data_set");
        m_layout = config_.get_layout();
        m_is_initialized = true;
+       return 0;
    }
 
    size_t KokkosHDF5Accessor::OpenFile_impl() { 
     //  printf("HDF5 Accessor calling open_file \n");
       open_file(KokkosIOAccessor::WRITE_FILE); 
       close_file();
+      return 0;
    }
 
    int KokkosHDF5Accessor::open_file(int read_write) { 

@@ -59,7 +59,7 @@ namespace Experimental {
 
       open_file(KokkosIOAccessor::WRITE_FILE); 
       close_file();
-
+      return 0;
    }
 
 

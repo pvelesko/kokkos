@@ -13,17 +13,33 @@ template<class MemorySpace>
 struct DirectoryManager {
 
    template<typename D>
-   inline static std::string ensure_directory_exists( const std::string dir, D d ) {
+   inline static std::string ensure_directory_exists( bool bCreate, const std::string dir, D d ) {
  //     printf("last call creating dir: %s \n", dir.c_str());
-      mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-      if( errno == EEXIST || errno == 3 || errno == 0 || errno == 2 ) {
+      int nErr = 0;
+      if (bCreate) {
+         for ( int i = 0; i < 5; i++) {
+            mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            nErr = errno;
+            if (nErr != 115)
+               break;
+         }
+      }
+      if( bCreate == false || nErr == EEXIST || nErr == 3 || nErr == 0 ) {
          std::string path = dir;
          std::stringstream iter_num;
          iter_num << "/" << d << "/";
          path += iter_num.str();
    //      printf("final dir: %s \n", path.c_str());
-         mkdir(path.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-         if( errno == EEXIST || errno == 3 || errno == 0 || errno == 2 ) {
+         int nErr = 0;
+         if (bCreate) {
+            for ( int i = 0; i < 5; i++) {
+               mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+               nErr = errno;
+               if (nErr != 115)
+                  break;
+            }
+         }
+         if( bCreate == false || nErr == EEXIST || nErr == 3 || nErr == 0 ) {
             return path;
          } else {
             printf("WARNING: Error creating path: %s, %d \n", path.c_str(), errno);
@@ -36,15 +52,23 @@ struct DirectoryManager {
    }
 
    template<typename D, typename ...Dargs>
-   inline static std::string ensure_directory_exists( const std::string dir, D d, Dargs... dargs) {
+   inline static std::string ensure_directory_exists( bool bCreate, const std::string dir, D d, Dargs... dargs) {
      // printf("recursive dir call: %s \n", dir.c_str());
-      mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-      if( errno == EEXIST || errno == 3 || errno == 0 || errno == 2 ) {
+      int nErr = 0;
+      if (bCreate) {
+         for ( int i = 0; i < 5; i++) {
+            mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            nErr = errno;
+            if (nErr != 115)
+               break;
+         }
+      }
+      if( bCreate == false || nErr == EEXIST || nErr == 3 || nErr == 0) {
          std::string path = dir;
          std::stringstream iter_num;
          iter_num << "/" << d << "/";
          path += iter_num.str();
-         return ensure_directory_exists( path, dargs... );
+         return ensure_directory_exists( bCreate, path, dargs... );
       } else {
          printf("WARNING: Error creating path: %s, %d \n", dir.c_str(), errno);
          return "";
@@ -52,8 +76,8 @@ struct DirectoryManager {
    }
 
    template<class ... Dargs>
-   inline static int set_checkpoint_directory(std::string dir, Dargs ...dargs ) {
-      std::string path = ensure_directory_exists( dir, dargs... );
+   inline static int set_checkpoint_directory(bool bCreate, std::string dir, Dargs ...dargs ) {
+      std::string path = ensure_directory_exists( bCreate, dir, dargs... );
       if ( path.length() > 0 ) { 
           MemorySpace::set_default_path(path);
           return 0;
