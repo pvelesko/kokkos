@@ -5,41 +5,47 @@
 #include <string>
 #include <sys/stat.h>
 #include <sstream>
+#if !defined( _WIN32 )
+  #include <time.h>
+#endif
 
 namespace Kokkos {
 namespace Experimental {
+
 
 template<class MemorySpace>
 struct DirectoryManager {
 
    template<typename D>
    inline static std::string ensure_directory_exists( bool bCreate, const std::string dir, D d ) {
- //     printf("last call creating dir: %s \n", dir.c_str());
+      //printf("last call creating dir: %s \n", dir.c_str());
       int nErr = 0;
       if (bCreate) {
-         for ( int i = 0; i < 5; i++) {
+         for ( int nRetry = 0; nRetry < 5; nRetry++ ) {
             mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
             nErr = errno;
-            if (nErr != 115)
+            if ( nErr != EINPROGRESS )
                break;
+            thread_yield();
          }
       }
-      if( bCreate == false || nErr == EEXIST || nErr == 3 || nErr == 0 ) {
+      if( bCreate == false || nErr == EEXIST || nErr == 0 ) {
          std::string path = dir;
          std::stringstream iter_num;
          iter_num << "/" << d << "/";
          path += iter_num.str();
-   //      printf("final dir: %s \n", path.c_str());
+        // printf("final dir: %s \n", path.c_str());
          int nErr = 0;
          if (bCreate) {
-            for ( int i = 0; i < 5; i++) {
-               mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            for ( int nRetry = 0; nRetry < 5; nRetry++ ) {
+               mkdir(path.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
                nErr = errno;
-               if (nErr != 115)
+               if ( nErr != EINPROGRESS )
                   break;
+               thread_yield();
             }
          }
-         if( bCreate == false || nErr == EEXIST || nErr == 3 || nErr == 0 ) {
+         if( bCreate == false || nErr == EEXIST || nErr == 0 ) {
             return path;
          } else {
             printf("WARNING: Error creating path: %s, %d \n", path.c_str(), errno);
@@ -53,17 +59,18 @@ struct DirectoryManager {
 
    template<typename D, typename ...Dargs>
    inline static std::string ensure_directory_exists( bool bCreate, const std::string dir, D d, Dargs... dargs) {
-     // printf("recursive dir call: %s \n", dir.c_str());
+    //  printf("recursive dir call: %s \n", dir.c_str());
       int nErr = 0;
       if (bCreate) {
-         for ( int i = 0; i < 5; i++) {
+         for ( int nRetry = 0; nRetry < 5; nRetry++ ) {
             mkdir(dir.c_str(),S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
             nErr = errno;
-            if (nErr != 115)
+            if ( nErr != EINPROGRESS )
                break;
+            thread_yield();
          }
       }
-      if( bCreate == false || nErr == EEXIST || nErr == 3 || nErr == 0) {
+      if( bCreate == false || nErr == EEXIST || nErr == 0) {
          std::string path = dir;
          std::stringstream iter_num;
          iter_num << "/" << d << "/";
@@ -84,6 +91,15 @@ struct DirectoryManager {
       } else {
          return -1;
       }
+   }
+   inline static void thread_yield() {
+
+      #if !defined( _WIN32 )
+      timespec req ;
+      req.tv_sec  = 0 ;
+      req.tv_nsec = 4096;
+      nanosleep( &req, nullptr );
+      #endif
    }
 };
 

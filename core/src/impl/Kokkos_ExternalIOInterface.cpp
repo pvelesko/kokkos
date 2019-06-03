@@ -13,7 +13,10 @@ namespace Experimental {
       if ( pos >= 0 && pos < path.length() ) {    // only use the default if there is no path info in the path...
          sFullPath = path;
       } else {
-         sFullPath += (std::string)"/";
+         size_t posII = sFullPath.rfind("/");
+         if (posII != (sFullPath.length()-1)) {
+            sFullPath += (std::string)"/";
+         }
          sFullPath += path;
       }
 

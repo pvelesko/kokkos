@@ -195,15 +195,15 @@ namespace Experimental {
 #endif
        // write file will always recreate it...
        if (read_write == KokkosIOAccessor::WRITE_FILE) {
-          //printf("[%d] creating HDF5 file: %s \n", mpi_rank, sFullPath.c_str() );
+         // printf("[%d] creating HDF5 file: %s \n", mpi_rank, sFullPath.c_str() );
           m_fid = H5Fcreate( sFullPath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, pid );
 
           if (m_fid == 0) {
               printf("Error creating HDF5 file\n");
           } else {
  
-             //printf ("creating file set: %s, %d, %d, %d, %d \n", data_set.c_str(), rank, 
-             //          data_extents[0], data_extents[1], data_extents[2]);
+//             printf ("creating file set: %s, %d, %d, %d, %d \n", data_set.c_str(), rank, 
+//                       data_extents[0], data_extents[1], data_extents[2]);
              hid_t fsid = H5Screate_simple(rank, data_extents, NULL);
              m_did = H5Dcreate(m_fid, data_set.c_str(), H5T_NATIVE_CHAR, fsid, 
                                H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT );
@@ -317,9 +317,9 @@ namespace Experimental {
       hsize_t stepSize = src_size;
       char* ptr = (char*)src;
       if (open_file(KokkosIOAccessor::WRITE_FILE) == 0 && m_fid != 0) {
-//         printf ("[%d] creating data set: %s, %d, %d, %d, %d \n", mpi_rank, data_set.c_str(), rank, 
-//                   local_extents[0], local_extents[1], local_extents[2]);
-//         printf("[W,%d] hyperslab: %d, %d, %d, %d \n", mpi_rank, file_offset[0], file_stride[0], file_count[0], file_block[0] );
+         //printf ("[%d] creating data set: %s, %d, %d, %d, %d \n", mpi_rank, data_set.c_str(), rank, 
+         //          local_extents[0], local_extents[1], local_extents[2]);
+         //printf("[W,%d] hyperslab: %d, %d, %d, %d \n", mpi_rank, file_offset[0], file_stride[0], file_count[0], file_block[0] );
          m_mid = H5Screate_simple(rank, local_extents, NULL);
          hid_t fsid = H5Dget_space(m_did);
          herr_t status = H5Sselect_hyperslab(fsid, H5S_SELECT_SET, file_offset, file_stride, file_count, file_block);
