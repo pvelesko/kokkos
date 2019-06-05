@@ -319,7 +319,8 @@ namespace Experimental {
       if (open_file(KokkosIOAccessor::WRITE_FILE) == 0 && m_fid != 0) {
          //printf ("[%d] creating data set: %s, %d, %d, %d, %d \n", mpi_rank, data_set.c_str(), rank, 
          //          local_extents[0], local_extents[1], local_extents[2]);
-         //printf("[W,%d] hyperslab: %d, %d, %d, %d \n", mpi_rank, file_offset[0], file_stride[0], file_count[0], file_block[0] );
+         //printf("[%d] hyperslab: %d, %d, %d, %d \n", mpi_rank, file_offset[0], file_stride[0], file_count[0], file_block[0] );
+         //printf("[%d]            %d, %d, %d, %d \n", mpi_rank, file_offset[1], file_stride[1], file_count[1], file_block[1] );
          m_mid = H5Screate_simple(rank, local_extents, NULL);
          hid_t fsid = H5Dget_space(m_did);
          herr_t status = H5Sselect_hyperslab(fsid, H5S_SELECT_SET, file_offset, file_stride, file_count, file_block);
@@ -337,8 +338,10 @@ namespace Experimental {
 //                     printf("[%d] write file: %d, %d, %d, %d -- %d \n", mpi_rank, i, j, k, l, offset_);
                      hid_t pid = H5Pcreate(H5P_DATASET_XFER);
 #ifdef KOKKOS_ENABLE_HDF5_PARALLEL
-                     if ( m_layout != KokkosHDF5ConfigurationManager::LAYOUT_DEFAULT)
+                     if ( m_layout != KokkosHDF5ConfigurationManager::LAYOUT_DEFAULT) {
+                         //printf("[%d] writing parallel file: %d, %08x \n", mpi_rank, view_offset[0], &ptr[view_offset[0]] ); 
                          H5Pset_dxpl_mpio(pid, H5FD_MPIO_COLLECTIVE);
+                     }
 #endif
 
                      

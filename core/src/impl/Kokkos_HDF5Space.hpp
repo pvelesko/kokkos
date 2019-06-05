@@ -185,6 +185,7 @@ public:
                           local_offset{0,0,0,0},
                           local_stride{1,1,1,1},
                           local_block{1,1,1,1},
+                          view_offset{0,0,0,0},
                           m_fid(0),
                           m_did(0),
                           m_mid(0),
@@ -204,6 +205,7 @@ public:
                                                                       local_offset{0,0,0,0},
                                                                       local_stride{1,1,1,1},
                                                                       local_block{size,1,1,1},
+                                                                      view_offset{0,0,0,0},
                                                                       m_fid(0),
                                                                       m_did(0),
                                                                       m_mid(0),
@@ -235,6 +237,7 @@ public:
          local_offset[i] = cp_.local_offset[i];
          local_stride[i] = cp_.local_stride[i];
          local_block[i] = cp_.local_block[i];
+         view_offset[i] = cp_.view_offset[i];
       }
       // need to re-initialize 
       if (data_size != cp_.data_size) {
