@@ -29,7 +29,7 @@ struct DirectoryManager {
             thread_yield();
          }
       }
-      if( bCreate == false || nErr == EEXIST || nErr == 0 ) {
+      if( bCreate == false || nErr == EEXIST || nErr == 0 || nErr == 3 ) {
          std::string path = dir;
          std::stringstream iter_num;
          iter_num << "/" << d << "/";
@@ -45,7 +45,7 @@ struct DirectoryManager {
                thread_yield();
             }
          }
-         if( bCreate == false || nErr == EEXIST || nErr == 0 ) {
+         if( bCreate == false || nErr == EEXIST || nErr == 0 || nErr == 3 ) {
             return path;
          } else {
             printf("WARNING: Error creating path: %s, %d \n", path.c_str(), errno);
@@ -70,7 +70,7 @@ struct DirectoryManager {
             thread_yield();
          }
       }
-      if( bCreate == false || nErr == EEXIST || nErr == 0) {
+      if( bCreate == false || nErr == EEXIST || nErr == 0 || nErr == 3) {
          std::string path = dir;
          std::stringstream iter_num;
          iter_num << "/" << d << "/";
