@@ -110,6 +110,10 @@ class HPX;  ///< Execution space with HPX back-end.
 class Threads;   ///< Execution space with pthreads back-end.
 #endif
 
+#if defined( KOKKOS_ENABLE_STDTHREAD )
+class StdThread;   ///< Execution space with std::thread back-end
+#endif
+
 #if defined( KOKKOS_ENABLE_OPENMP )
 class OpenMP;    ///< OpenMP execution space.
 #endif
@@ -160,6 +164,8 @@ namespace Kokkos {
   typedef OpenMP DefaultExecutionSpace;
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS )
   typedef Threads DefaultExecutionSpace;
+#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD )
+  typedef StdThread DefaultExecutionSpace;
 //#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_QTHREADS )
 //  typedef Qthreads DefaultExecutionSpace;
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_HPX )
@@ -174,6 +180,8 @@ namespace Kokkos {
   typedef OpenMP DefaultHostExecutionSpace;
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS )
   typedef Threads DefaultHostExecutionSpace;
+#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD )
+  typedef StdThread DefaultHostExecutionSpace;
 //#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_QTHREADS )
 //  typedef Qthreads DefaultHostExecutionSpace;
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL )
@@ -182,6 +190,8 @@ namespace Kokkos {
   typedef OpenMP DefaultHostExecutionSpace;
 #elif defined( KOKKOS_ENABLE_THREADS )
   typedef Threads DefaultHostExecutionSpace;
+#elif defined( KOKKOS_ENABLE_STDTHREAD )
+  typedef StdThreads DefaultHostExecutionSpace;
 //#elif defined( KOKKOS_ENABLE_QTHREADS )
 //  typedef Qthreads DefaultHostExecutionSpace;
 #elif defined( KOKKOS_ENABLE_HPX )

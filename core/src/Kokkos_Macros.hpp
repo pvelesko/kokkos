@@ -49,6 +49,7 @@
  *
  *  KOKKOS_ENABLE_CUDA                Kokkos::Cuda execution and memory spaces
  *  KOKKOS_ENABLE_THREADS             Kokkos::Threads execution space
+ *  KOKKOS_ENABLE_STDTHREAD           Kokkos::StdThread execution space
  *  KOKKOS_ENABLE_QTHREADS            Kokkos::Qthreads execution space
  *  KOKKOS_ENABLE_HPX                 Kokkos::Experimental::HPX execution space
  *  KOKKOS_ENABLE_OPENMP              Kokkos::OpenMP execution space
@@ -97,14 +98,14 @@
 
 //----------------------------------------------------------------------------
 
-#if defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_THREADS) || \
+#if defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_THREADS) || defined(KOKKOS_ENABLE_STDTHREAD) || \
     defined(KOKKOS_ENABLE_OPENMP) || defined(KOKKOS_ENABLE_QTHREADS) || \
     defined(KOKKOS_ENABLE_HPX) || \
     defined(KOKKOS_ENABLE_ROCM) || defined(KOKKOS_ENABLE_OPENMPTARGET)
   #define KOKKOS_INTERNAL_ENABLE_NON_CUDA_BACKEND
 #endif
 
-#if !defined(KOKKOS_ENABLE_THREADS) && !defined(KOKKOS_ENABLE_CUDA) && \
+#if !defined(KOKKOS_ENABLE_THREADS) && !defined(KOKKOS_ENABLE_CUDA) && !defined(KOKKOS_ENABLE_STDTHREAD) && \
     !defined(KOKKOS_ENABLE_OPENMP) && !defined(KOKKOS_ENABLE_QTHREADS) && \
     !defined(KOKKOS_ENABLE_HPX) && \
     !defined(KOKKOS_ENABLE_ROCM) && !defined(KOKKOS_ENABLE_OPENMPTARGET)
@@ -488,6 +489,7 @@
           ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMPTARGET ) ? 1 : 0 ) + \
           ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMP ) ? 1 : 0 ) + \
           ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS ) ? 1 : 0 ) + \
+          ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD ) ? 1 : 0 ) + \
           ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_QTHREADS ) ? 1 : 0 ) + \
           ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_HPX ) ? 1 : 0 ) + \
           ( defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL ) ? 1 : 0 ) )
@@ -495,12 +497,13 @@
 #endif
 
 // If default is not specified then chose from enabled execution spaces.
-// Priority: CUDA, OPENMP, THREADS, QTHREADS, HPX, SERIAL
+// Priority: CUDA, OPENMP, THREADS, STDTHREAD, QTHREADS, HPX, SERIAL
 #if   defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_CUDA )
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_ROCM )
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMPTARGET )
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMP )
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS )
+#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD )
 //#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_QTHREADS )
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_HPX )
 #elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL )
@@ -514,6 +517,8 @@
   #define KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMP
 #elif defined( KOKKOS_ENABLE_THREADS )
   #define KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS
+#elif defined( KOKKOS_ENABLE_STDTHREAD )
+  #define KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD
 //#elif defined( KOKKOS_ENABLE_QTHREADS )
 //  #define KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_QTHREADS
 #elif defined( KOKKOS_ENABLE_HPX )

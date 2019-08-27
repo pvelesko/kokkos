@@ -30,7 +30,7 @@ namespace Kokkos {
       template< class D, class ... P >
       struct is_offset_view< const OffsetView<D,P...> > : public std::true_type {};
 
-#define KOKKOS_INVALID_OFFSET int64_t(0)
+#define KOKKOS_INVALID_OFFSET int64_t(0x7FFFFFFFFFFFFFFF)
 #define KOKKOS_INVALID_INDEX_RANGE {KOKKOS_INVALID_OFFSET, KOKKOS_INVALID_OFFSET}
 
       template <typename iType, typename std::enable_if< std::is_integral<iType>::value &&

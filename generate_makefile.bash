@@ -43,6 +43,9 @@ do
     --with-pthread)
       KOKKOS_DEVICES="${KOKKOS_DEVICES},Pthread"
       ;;
+    --with-stdthread)
+      KOKKOS_DEVICES="${KOKKOS_DEVICES},StdThread"
+      ;;
     --with-serial)
       KOKKOS_DEVICES="${KOKKOS_DEVICES},Serial"
       ;;
@@ -135,6 +138,7 @@ do
       echo "--with-cuda[=/Path/To/Cuda]:          Enable Cuda and set path to Cuda Toolkit."
       echo "--with-openmp:                        Enable OpenMP backend."
       echo "--with-pthread:                       Enable Pthreads backend."
+      echo "--with-stdthread:                     Enable StdThread backend."
       echo "--with-serial:                        Enable Serial backend."
       echo "--with-qthreads[=/Path/To/Qthreads]:  Enable Qthreads backend."
       echo "--with-devices:                       Explicitly add a set of backends."
