@@ -57,6 +57,8 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#include <mutex>
+#include <thread>
 
 #include <Kokkos_Threads.hpp>
 
@@ -66,14 +68,14 @@ namespace Kokkos {
 namespace Impl {
 namespace {
 
-pthread_mutex_t host_internal_pthread_mutex = PTHREAD_MUTEX_INITIALIZER;
+std::mutex host_internal_stdthread_mutex;
 
 // Pthreads compatible driver.
 // Recovery from an exception would require constant intra-thread health
 // verification; which would negatively impact runtime.  As such simply
 // abort the process.
 
-void* internal_pthread_driver(void*) {
+void internal_stdthread_driver() {
   try {
     ThreadsExec::driver();
   } catch (const std::exception& x) {
@@ -86,7 +88,6 @@ void* internal_pthread_driver(void*) {
     std::cerr.flush();
     std::abort();
   }
-  return NULL;
 }
 
 }  // namespace
@@ -95,44 +96,36 @@ void* internal_pthread_driver(void*) {
 // Spawn a thread
 
 bool ThreadsExec::spawn() {
-  bool result = false;
+  try {
+    std::thread t(internal_stdthread_driver);
+    t.detach();
+  } catch (std::system_error const& e) {
+    std::cout << "Exception std::system_error(" << e.code() << ", " << e.what()
+              << ") thrown from std::thread creation" << std::endl;
 
-  pthread_attr_t attr;
-
-  if (0 == pthread_attr_init(&attr) ||
-      0 == pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM) ||
-      0 == pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) {
-    pthread_t pt;
-
-    result = 0 == pthread_create(&pt, &attr, internal_pthread_driver, 0);
+    return false;
   }
 
-  pthread_attr_destroy(&attr);
-
-  return result;
+  return true;
 }
 
 //----------------------------------------------------------------------------
 
 bool ThreadsExec::is_process() {
-  static const pthread_t master_pid = pthread_self();
+  static const std::thread::id master_pid = std::this_thread::get_id();
 
-  return pthread_equal(master_pid, pthread_self());
+  return master_pid == std::this_thread::get_id();
 }
 
-void ThreadsExec::global_lock() {
-  pthread_mutex_lock(&host_internal_pthread_mutex);
-}
+void ThreadsExec::global_lock() { host_internal_stdthread_mutex.lock(); }
 
-void ThreadsExec::global_unlock() {
-  pthread_mutex_unlock(&host_internal_pthread_mutex);
-}
+void ThreadsExec::global_unlock() { host_internal_stdthread_mutex.unlock(); }
 
 //----------------------------------------------------------------------------
 
 void ThreadsExec::wait_yield(volatile int& flag, const int value) {
   while (value == flag) {
-    sched_yield();
+      std::this_thread::yield();
   }
 }
 

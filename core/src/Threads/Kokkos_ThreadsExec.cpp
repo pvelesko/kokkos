@@ -49,6 +49,7 @@
 #include <utility>
 #include <iostream>
 #include <sstream>
+#include <thread>
 
 #include <Kokkos_Core.hpp>
 
@@ -64,8 +65,8 @@ namespace Impl {
 namespace {
 
 ThreadsExec s_threads_process;
-ThreadsExec *s_threads_exec[ThreadsExec::MAX_THREAD_COUNT] = {0};
-pthread_t s_threads_pid[ThreadsExec::MAX_THREAD_COUNT]     = {0};
+ThreadsExec *s_threads_exec[ThreadsExec::MAX_THREAD_COUNT]   = {0};
+std::thread::id s_threads_pid[ThreadsExec::MAX_THREAD_COUNT] = {};
 std::pair<unsigned, unsigned> s_threads_coord[ThreadsExec::MAX_THREAD_COUNT];
 
 int s_thread_pool_size[3] = {0, 0, 0};
@@ -98,6 +99,15 @@ inline unsigned fan_size(const unsigned rank, const unsigned size) {
     ++count;
   }
   return count;
+}
+
+// Calculate the number of concurrent threads
+// Use hardware_concurrency() if it returns a non-zero value;
+// otherwise, fall back on the number of cores
+static unsigned number_of_hardware_thread_contexts() {
+  return std::thread::hardware_concurrency()
+             ? std::thread::hardware_concurrency()
+             : processors_per_node();
 }
 
 }  // namespace
@@ -151,6 +161,7 @@ ThreadsExec::ThreadsExec()
                                                      s_threads_coord));
 
     // Given a good entry set this thread in the 's_threads_exec' array
+    // NLIBER TODO use std::atomic_compare_exchange_strong (which requires atomic<T> types)
     if (entry < s_thread_pool_size[0] &&
         nil == atomic_compare_exchange(s_threads_exec + entry, nil, this)) {
       const std::pair<unsigned, unsigned> coord =
@@ -165,7 +176,7 @@ ThreadsExec::ThreadsExec()
       m_pool_fan_size  = fan_size(m_pool_rank, m_pool_size);
       m_pool_state     = ThreadsExec::Active;
 
-      s_threads_pid[m_pool_rank] = pthread_self();
+      s_threads_pid[m_pool_rank] = std::this_thread::get_id();
 
       // Inform spawning process that the threads_exec entry has been set.
       s_threads_process.m_pool_state = ThreadsExec::Active;
@@ -179,7 +190,7 @@ ThreadsExec::ThreadsExec()
     m_pool_size  = 1;
     m_pool_state = ThreadsExec::Inactive;
 
-    s_threads_pid[m_pool_rank] = pthread_self();
+    s_threads_pid[m_pool_rank] = std::this_thread::get_id();
   }
 }
 
@@ -656,7 +667,8 @@ void ThreadsExec::initialize(unsigned thread_count, unsigned use_numa_count,
         s_threads_process.m_pool_size     = thread_count;
         s_threads_process.m_pool_fan_size = fan_size(
             s_threads_process.m_pool_rank, s_threads_process.m_pool_size);
-        s_threads_pid[s_threads_process.m_pool_rank] = pthread_self();
+        s_threads_pid[s_threads_process.m_pool_rank] =
+            std::this_thread::get_id();
       } else {
         s_threads_process.m_pool_base     = 0;
         s_threads_process.m_pool_rank     = 0;
@@ -688,15 +700,15 @@ void ThreadsExec::initialize(unsigned thread_count, unsigned use_numa_count,
     Kokkos::Impl::throw_runtime_exception(msg.str());
   }
 
-  // Check for over-subscription
   if (Kokkos::show_warnings() &&
       (Impl::mpi_ranks_per_node() * long(thread_count) >
-       Impl::processors_per_node())) {
+       number_of_hardware_thread_contexts())) {
     std::cerr << "Kokkos::Threads::initialize WARNING: You are likely "
                  "oversubscribing your CPU cores."
               << std::endl;
     std::cerr << "                                    Detected: "
-              << Impl::processors_per_node() << " cores per node." << std::endl;
+              << number_of_hardware_thread_contexts()
+              << " hardware thread contexts." << std::endl;
     std::cerr << "                                    Detected: "
               << Impl::mpi_ranks_per_node() << " MPI_ranks per node."
               << std::endl;
@@ -734,7 +746,7 @@ void ThreadsExec::finalize() {
       s_threads_process.m_pool_state = ThreadsExec::Inactive;
     }
 
-    s_threads_pid[i] = 0;
+    s_threads_pid[i] = std::thread::id();
   }
 
   if (s_threads_process.m_pool_base) {
@@ -811,8 +823,8 @@ int Threads::thread_pool_rank()
 int Threads::impl_thread_pool_rank()
 #endif
 {
-  const pthread_t pid = pthread_self();
-  int i               = 0;
+  const std::thread::id pid = std::this_thread::get_id();
+  int i                     = 0;
   while ((i < Impl::s_thread_pool_size[0]) && (pid != Impl::s_threads_pid[i])) {
     ++i;
   }
