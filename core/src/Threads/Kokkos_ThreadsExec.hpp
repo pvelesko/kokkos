@@ -93,7 +93,7 @@ class ThreadsExec {
   // the threads that need them.
   // For a simple reduction the thread location is arbitrary.
 
-  ThreadsExec *const *m_pool_base;  ///< Base for pool fan-in
+  const std::atomic<ThreadsExec *> *m_pool_base;  ///< Base for pool fan-in
 
   void *m_scratch;
   int m_scratch_reduce_end;
@@ -145,7 +145,7 @@ class ThreadsExec {
   }
 
   KOKKOS_INLINE_FUNCTION int volatile &state() { return m_pool_state; }
-  KOKKOS_INLINE_FUNCTION ThreadsExec *const *pool_base() const {
+  KOKKOS_INLINE_FUNCTION const std::atomic<ThreadsExec *> *pool_base() const {
     return m_pool_base;
   }
 
@@ -194,7 +194,8 @@ class ThreadsExec {
     for (int i = 0; i < m_pool_fan_size; ++i) {
       // Wait: Active -> Rendezvous
       Impl::spinwait_while_equal<int>(
-          m_pool_base[rev_rank + (1 << i)]->m_pool_state, ThreadsExec::Active);
+          m_pool_base[rev_rank + (1 << i)].load()->m_pool_state,
+          ThreadsExec::Active);
     }
 
     if (rev_rank) {
@@ -234,7 +235,8 @@ class ThreadsExec {
     for (int i = 0; i < m_pool_fan_size; ++i) {
       // Wait: Active -> Rendezvous
       Impl::spinwait_while_equal<int>(
-          m_pool_base[rev_rank + (1 << i)]->m_pool_state, ThreadsExec::Active);
+          m_pool_base[rev_rank + (1 << i)].load()->m_pool_state,
+          ThreadsExec::Active);
     }
 
     if (rev_rank) {
@@ -291,7 +293,8 @@ class ThreadsExec {
 
     for (int i = 0; i < m_pool_fan_size; ++i) {
       Impl::spinwait_while_equal<int>(
-          m_pool_base[rev_rank + (1 << i)]->m_pool_state, ThreadsExec::Active);
+          m_pool_base[rev_rank + (1 << i)].load()->m_pool_state,
+          ThreadsExec::Active);
     }
   }
 
@@ -393,7 +396,7 @@ class ThreadsExec {
     // Wait for all threads: Rendezvous -> ScanCompleted
     for (int i = 0; i < m_pool_fan_size; ++i) {
       Impl::spinwait_while_equal<int>(
-          m_pool_base[rev_rank + (1 << i)]->m_pool_state,
+          m_pool_base[rev_rank + (1 << i)].load()->m_pool_state,
           ThreadsExec::Rendezvous);
     }
     if (rev_rank) {
@@ -404,7 +407,8 @@ class ThreadsExec {
     }
     // Set: ScanCompleted -> Active
     for (int i = 0; i < m_pool_fan_size; ++i) {
-      m_pool_base[rev_rank + (1 << i)]->m_pool_state = ThreadsExec::Active;
+      m_pool_base[rev_rank + (1 << i)].load()->m_pool_state =
+          ThreadsExec::Active;
     }
   }
 
@@ -426,7 +430,8 @@ class ThreadsExec {
     for (int i = 0; i < m_pool_fan_size; ++i) {
       // Wait: Active -> Rendezvous
       Impl::spinwait_while_equal<int>(
-          m_pool_base[rev_rank + (1 << i)]->m_pool_state, ThreadsExec::Active);
+          m_pool_base[rev_rank + (1 << i)].load()->m_pool_state,
+          ThreadsExec::Active);
     }
 
     for (unsigned i = 0; i < count; ++i) {
@@ -458,7 +463,8 @@ class ThreadsExec {
     }
 
     for (int i = 0; i < m_pool_fan_size; ++i) {
-      m_pool_base[rev_rank + (1 << i)]->m_pool_state = ThreadsExec::Active;
+      m_pool_base[rev_rank + (1 << i)].load()->m_pool_state =
+          ThreadsExec::Active;
     }
   }
 
@@ -545,11 +551,21 @@ class ThreadsExec {
   // arriving at this threads rank Returns -1 fi no active steal target
   // available
   inline int get_steal_target() {
+    const Kokkos::pair<long, long> *work_range =
+        &m_pool_base[m_current_steal_target].load()->m_work_range;
+    while (work_range->second <= work_range->first &&
+           m_current_steal_target != m_pool_rank) {
+      m_current_steal_target = (m_current_steal_target + 1) % pool_size();
+      work_range = &m_pool_base[m_current_steal_target].load()->m_work_range;
+    }
+
+#if 0
     while ((m_pool_base[m_current_steal_target]->m_work_range.second <=
             m_pool_base[m_current_steal_target]->m_work_range.first) &&
            (m_current_steal_target != m_pool_rank)) {
       m_current_steal_target = (m_current_steal_target + 1) % pool_size();
     }
+#endif
     if (m_current_steal_target == m_pool_rank)
       return -1;
     else
@@ -557,9 +573,8 @@ class ThreadsExec {
   }
 
   inline int get_steal_target(int team_size) {
-    while ((m_pool_base[m_current_steal_target]->m_work_range.second <=
-            m_pool_base[m_current_steal_target]->m_work_range.first) &&
-           (m_current_steal_target != m_pool_rank_rev)) {
+      const Kokkos::pair<long, long>* work_range = &m_pool_base[m_current_steal_target].load()->m_work_range;
+      while (work_range->second <= work_range->first && m_current_steal_target != m_pool_rank_rev) {
       if (m_current_steal_target + team_size < pool_size())
         m_current_steal_target = (m_current_steal_target + team_size);
       else
@@ -577,7 +592,7 @@ class ThreadsExec {
     int steal_target =
         team_size > 0 ? get_steal_target(team_size) : get_steal_target();
     while ((steal_target != -1) && (index == -1)) {
-      index = m_pool_base[steal_target]->get_work_index_end();
+      index = m_pool_base[steal_target].load()->get_work_index_end();
       if (index == -1)
         steal_target =
             team_size > 0 ? get_steal_target(team_size) : get_steal_target();

@@ -79,7 +79,7 @@ class ThreadsExecTeamMember {
  private:
   typedef execution_space::scratch_memory_space space;
   ThreadsExec* const m_exec;
-  ThreadsExec* const* m_team_base;  ///< Base for team fan-in
+  const std::atomic<ThreadsExec*>* m_team_base;  ///< Base for team fan-in
   space m_team_shared;
   int m_team_shared_size;
   int m_team_size;
@@ -96,9 +96,9 @@ class ThreadsExecTeamMember {
   int m_team_alloc;
 
   inline void set_team_shared() {
-    new (&m_team_shared)
-        space(((char*)(*m_team_base)->scratch_memory()) + TEAM_REDUCE_SIZE,
-              m_team_shared_size);
+    new (&m_team_shared) space(
+        ((char*)(m_team_base->load())->scratch_memory()) + TEAM_REDUCE_SIZE,
+        m_team_shared_size);
   }
 
  public:
@@ -112,7 +112,7 @@ class ThreadsExecTeamMember {
     for (n = 1;
          (!(m_team_rank_rev & n)) && ((j = m_team_rank_rev + n) < m_team_size);
          n <<= 1) {
-      Impl::spinwait_while_equal<int>(m_team_base[j]->state(),
+      Impl::spinwait_while_equal<int>(m_team_base[j].load()->state(),
                                       ThreadsExec::Active);
     }
 
@@ -130,7 +130,7 @@ class ThreadsExecTeamMember {
     for (n = 1;
          (!(m_team_rank_rev & n)) && ((j = m_team_rank_rev + n) < m_team_size);
          n <<= 1) {
-      m_team_base[j]->state() = ThreadsExec::Active;
+      m_team_base[j].load()->state() = ThreadsExec::Active;
     }
   }
 
@@ -175,7 +175,7 @@ class ThreadsExecTeamMember {
                           void>::type type;
 
     if (m_team_base) {
-      type* const local_value = ((type*)m_team_base[0]->scratch_memory());
+      type* const local_value = ((type*)m_team_base->load()->scratch_memory());
       if (team_rank() == thread_id) *local_value = value;
       memory_fence();
       team_barrier();
@@ -195,7 +195,7 @@ class ThreadsExecTeamMember {
                           void>::type type;
     f(value);
     if (m_team_base) {
-      type* const local_value = ((type*)m_team_base[0]->scratch_memory());
+      type* const local_value = ((type*)m_team_base->load()->scratch_memory());
       if (team_rank() == thread_id) *local_value = value;
       memory_fence();
       team_barrier();
@@ -224,11 +224,11 @@ class ThreadsExecTeamMember {
 
     memory_fence();
 
-    type& accum = *((type*)m_team_base[0]->scratch_memory());
+    type& accum = *((type*)m_team_base->load()->scratch_memory());
 
     if (team_fan_in()) {
       for (int i = 1; i < m_team_size; ++i) {
-        accum += *((type*)m_team_base[i]->scratch_memory());
+        accum += *((type*)m_team_base[i].load()->scratch_memory());
       }
       memory_fence();
     }
@@ -274,17 +274,18 @@ class ThreadsExecTeamMember {
     if (team_fan_in()) {
       // The last thread to synchronize returns true, all other threads wait for
       // team_fan_out()
-      type* const team_value = ((type*)m_team_base[0]->scratch_memory());
+      type* const team_value = ((type*)m_team_base[0].load()->scratch_memory());
 
       // Join to the team value:
       for (int i = 1; i < m_team_size; ++i) {
-        reducer.join(*team_value, *((type*)m_team_base[i]->scratch_memory()));
+        reducer.join(*team_value,
+                     *((type*)m_team_base[i].load()->scratch_memory()));
       }
 
       // Team base thread may "lap" member threads so copy out to their local
       // value.
       for (int i = 1; i < m_team_size; ++i) {
-        *((type*)m_team_base[i]->scratch_memory()) = *team_value;
+        *((type*)m_team_base[i].load()->scratch_memory()) = *team_value;
       }
 
       // Fence to make sure all team members have access
@@ -341,14 +342,14 @@ class ThreadsExecTeamMember {
 
       if (global_accum) {
         for (int i = m_team_size; i--;) {
-          type& val = *((type*)m_team_base[i]->scratch_memory());
+          type& val = *((type*)m_team_base[i].load()->scratch_memory());
           accum += val;
         }
         accum = atomic_fetch_add(global_accum, accum);
       }
 
       for (int i = m_team_size; i--;) {
-        type& val = *((type*)m_team_base[i]->scratch_memory());
+        type& val = *((type*)m_team_base[i].load()->scratch_memory());
         const type offset = accum;
         accum += val;
         val = offset;
@@ -502,11 +503,11 @@ class ThreadsExecTeamMember {
     }
 
     if (m_team_rank_rev == 0) {
-      m_team_base[0]->get_work_index(m_team_alloc);
+      m_team_base->load()->get_work_index(m_team_alloc);
     }
     team_barrier();
 
-    long work_index = m_team_base[0]->team_work_index();
+    long work_index = m_team_base->load()->team_work_index();
 
     m_league_rank      = work_index * m_chunk_size;
     m_league_chunk_end = (work_index + 1) * m_chunk_size;

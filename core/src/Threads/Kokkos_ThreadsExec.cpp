@@ -65,7 +65,7 @@ namespace Impl {
 namespace {
 
 ThreadsExec s_threads_process;
-ThreadsExec *s_threads_exec[ThreadsExec::MAX_THREAD_COUNT]   = {0};
+std::atomic<ThreadsExec *> s_threads_exec[ThreadsExec::MAX_THREAD_COUNT];
 std::thread::id s_threads_pid[ThreadsExec::MAX_THREAD_COUNT] = {};
 std::pair<unsigned, unsigned> s_threads_coord[ThreadsExec::MAX_THREAD_COUNT];
 
@@ -151,7 +151,7 @@ ThreadsExec::ThreadsExec()
   if (&s_threads_process != this) {
     // A spawned thread
 
-    ThreadsExec *const nil = 0;
+    ThreadsExec *nil = nullptr;
 
     // Which entry in 's_threads_exec', possibly determined from hwloc binding
     const int entry =
@@ -161,9 +161,10 @@ ThreadsExec::ThreadsExec()
                                                      s_threads_coord));
 
     // Given a good entry set this thread in the 's_threads_exec' array
-    // NLIBER TODO use std::atomic_compare_exchange_strong (which requires atomic<T> types)
+    // NLIBER TODO use std::atomic_compare_exchange_strong (which requires
+    // atomic<T> types)
     if (entry < s_thread_pool_size[0] &&
-        nil == atomic_compare_exchange(s_threads_exec + entry, nil, this)) {
+        s_threads_exec[entry].compare_exchange_strong(nil, this)) {
       const std::pair<unsigned, unsigned> coord =
           Kokkos::hwloc::get_this_thread_coordinate();
 
@@ -219,9 +220,9 @@ ThreadsExec::~ThreadsExec() {
   m_pool_state = ThreadsExec::Terminating;
 
   if (&s_threads_process != this && entry < MAX_THREAD_COUNT) {
-    ThreadsExec *const nil = 0;
+    ThreadsExec *self = this;
 
-    atomic_compare_exchange(s_threads_exec + entry, this, nil);
+    s_threads_exec[entry].compare_exchange_strong(self, nullptr);
 
     s_threads_process.m_pool_state = ThreadsExec::Terminating;
   }
@@ -232,7 +233,7 @@ int ThreadsExec::get_thread_count() { return s_thread_pool_size[0]; }
 ThreadsExec *ThreadsExec::get_thread(const int init_thread_rank) {
   ThreadsExec *const th =
       init_thread_rank < s_thread_pool_size[0]
-          ? s_threads_exec[s_thread_pool_size[0] - (init_thread_rank + 1)]
+          ? s_threads_exec[s_thread_pool_size[0] - (init_thread_rank + 1)].load()
           : 0;
 
   if (0 == th || th->m_pool_rank != init_thread_rank) {
@@ -261,7 +262,7 @@ void ThreadsExec::execute_sleep(ThreadsExec &exec, const void *) {
 
   for (int i = 0; i < n; ++i) {
     Impl::spinwait_while_equal<int>(
-        exec.m_pool_base[rank_rev + (1 << i)]->m_pool_state,
+        exec.m_pool_base[rank_rev + (1 << i)].load()->m_pool_state,
         ThreadsExec::Active);
   }
 
@@ -305,7 +306,7 @@ int ThreadsExec::in_parallel() {
 void ThreadsExec::fence() {
   if (s_thread_pool_size[0]) {
     // Wait for the root thread to complete:
-    Impl::spinwait_while_equal<int>(s_threads_exec[0]->m_pool_state,
+    Impl::spinwait_while_equal<int>(s_threads_exec->load()->m_pool_state,
                                     ThreadsExec::Active);
   }
 
@@ -335,7 +336,7 @@ void ThreadsExec::start(void (*func)(ThreadsExec &, const void *),
 
   // Activate threads:
   for (int i = s_thread_pool_size[0]; 0 < i--;) {
-    s_threads_exec[i]->m_pool_state = ThreadsExec::Active;
+    s_threads_exec[i].load()->m_pool_state = ThreadsExec::Active;
   }
 
   if (s_threads_process.m_pool_size) {
@@ -360,7 +361,7 @@ bool ThreadsExec::sleep() {
 
   // Activate threads:
   for (unsigned i = s_thread_pool_size[0]; 0 < i;) {
-    s_threads_exec[--i]->m_pool_state = ThreadsExec::Active;
+    s_threads_exec[--i].load()->m_pool_state = ThreadsExec::Active;
   }
 
   return true;
@@ -481,7 +482,7 @@ void *ThreadsExec::resize_scratch(size_t reduce_size, size_t thread_size) {
 
     execute_serial(&execute_resize_scratch);
 
-    s_threads_process.m_scratch = s_threads_exec[0]->m_scratch;
+    s_threads_process.m_scratch = s_threads_exec->load()->m_scratch;
   }
 
   return s_threads_process.m_scratch;
@@ -739,7 +740,7 @@ void ThreadsExec::finalize() {
 
   for (unsigned i = s_thread_pool_size[0]; begin < i--;) {
     if (s_threads_exec[i]) {
-      s_threads_exec[i]->m_pool_state = ThreadsExec::Terminating;
+      s_threads_exec[i].load()->m_pool_state = ThreadsExec::Terminating;
 
       wait_yield(s_threads_process.m_pool_state, ThreadsExec::Inactive);
 
