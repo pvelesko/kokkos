@@ -43,8 +43,9 @@
 
 #include <Kokkos_Core.hpp>
 
-#if !defined(KOKKOS_ENABLE_TASKDAG) || \
-    defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS)
+#if !defined(KOKKOS_ENABLE_TASKDAG) ||                    \
+    defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS) || \
+    defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD)
 
 int main() { return 0; }
 

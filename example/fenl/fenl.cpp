@@ -59,6 +59,19 @@ fenl<Kokkos::Threads, Kokkos::Example::BoxElemPart::ElemQuadratic>(
 
 #endif
 
+#if defined(KOKKOS_ENABLE_STDTHREAD)
+
+template Perf fenl<Kokkos::StdThread, Kokkos::Example::BoxElemPart::ElemLinear>(
+    MPI_Comm comm, const int use_print, const int use_trials,
+    const int use_atomic, const int global_elems[]);
+
+template Perf
+fenl<Kokkos::StdThread, Kokkos::Example::BoxElemPart::ElemQuadratic>(
+    MPI_Comm comm, const int use_print, const int use_trials,
+    const int use_atomic, const int global_elems[]);
+
+#endif
+
 #if defined(KOKKOS_ENABLE_OPENMP)
 
 template Perf fenl<Kokkos::OpenMP, Kokkos::Example::BoxElemPart::ElemLinear>(

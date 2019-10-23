@@ -43,6 +43,12 @@ ifeq ($(KOKKOS_INTERNAL_USE_PTHREADS), 1)
 	TEST_TARGETS += test-threads
 endif
 
+ifeq ($(KOKKOS_INTERNAL_USE_STDTHREAD), 1)
+	OBJ_THREADS = TestStdThread.o TestMain.o gtest-all.o
+	TARGETS += KokkosContainers_PerformanceTest_StdThread
+	TEST_TARGETS += test-stdthread
+endif
+
 ifeq ($(KOKKOS_INTERNAL_USE_OPENMP), 1)
 	OBJ_OPENMP = TestOpenMP.o TestMain.o gtest-all.o
 	TARGETS += KokkosContainers_PerformanceTest_OpenMP
@@ -64,6 +70,9 @@ KokkosContainers_PerformanceTest_ROCm: $(OBJ_ROCM) $(KOKKOS_LINK_DEPENDS)
 KokkosContainers_PerformanceTest_Threads: $(OBJ_THREADS) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(KOKKOS_LDFLAGS) $(LDFLAGS) $(EXTRA_PATH) $(OBJ_THREADS) $(KOKKOS_LIBS) $(LIB) -o KokkosContainers_PerformanceTest_Threads
 
+KokkosContainers_PerformanceTest_StdThread: $(OBJ_THREADS) $(KOKKOS_LINK_DEPENDS)
+	$(LINK) $(KOKKOS_LDFLAGS) $(LDFLAGS) $(EXTRA_PATH) $(OBJ_THREADS) $(KOKKOS_LIBS) $(LIB) -o KokkosContainers_PerformanceTest_StdThread
+
 KokkosContainers_PerformanceTest_OpenMP: $(OBJ_OPENMP) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(KOKKOS_LDFLAGS) $(LDFLAGS) $(EXTRA_PATH) $(OBJ_OPENMP) $(KOKKOS_LIBS) $(LIB) -o KokkosContainers_PerformanceTest_OpenMP
 
@@ -78,6 +87,9 @@ test-rocm: KokkosContainers_PerformanceTest_ROCm
 
 test-threads: KokkosContainers_PerformanceTest_Threads
 	./KokkosContainers_PerformanceTest_Threads
+
+test-stdthread: KokkosContainers_PerformanceTest_StdThread
+	./KokkosContainers_PerformanceTest_StdThread
 
 test-openmp: KokkosContainers_PerformanceTest_OpenMP
 	./KokkosContainers_PerformanceTest_OpenMP

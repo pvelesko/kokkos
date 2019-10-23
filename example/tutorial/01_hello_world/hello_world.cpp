@@ -97,6 +97,8 @@ int main(int argc, char* argv[]) {
   // start with "--kokkos-".
   Kokkos::initialize(argc, argv);
 
+  //NLIBER Kokkos::Threads::print_configuration(std::cout, true);
+
   // Print the name of Kokkos' default execution space.  We're using
   // typeid here, so the name might get a bit mangled by the linker,
   // but you should still be able to figure out what it is.

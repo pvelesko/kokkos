@@ -77,6 +77,13 @@ ifeq ($(KOKKOS_INTERNAL_ENABLE_ETI), 1)
 endif
 endif
 
+ifeq ($(KOKKOS_INTERNAL_USE_STDTHREAD), 1)
+Kokkos_StdThreadExec_base.o: $(KOKKOS_CPP_DEPENDS) $(KOKKOS_PATH)/core/src/StdThread/Kokkos_StdThreadExec_base.cpp
+	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) -c $(KOKKOS_PATH)/core/src/StdThread/Kokkos_StdThreadExec_base.cpp
+Kokkos_StdThreadExec.o: $(KOKKOS_CPP_DEPENDS) $(KOKKOS_PATH)/core/src/StdThread/Kokkos_StdThreadExec.cpp
+	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) -c $(KOKKOS_PATH)/core/src/StdThread/Kokkos_StdThreadExec.cpp
+endif
+
 ifeq ($(KOKKOS_INTERNAL_USE_QTHREADS), 1)
 Kokkos_QthreadsExec.o: $(KOKKOS_CPP_DEPENDS) $(KOKKOS_PATH)/core/src/Qthreads/Kokkos_QthreadsExec.cpp
 	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) -c $(KOKKOS_PATH)/core/src/Qthreads/Kokkos_QthreadsExec.cpp

@@ -85,11 +85,13 @@ void initialize_internal(const InitArguments& args) {
   }
 
   // Protect declarations, to prevent "unused variable" warnings.
-#if defined(KOKKOS_ENABLE_OPENMP) || defined(KOKKOS_ENABLE_THREADS) || \
-    defined(KOKKOS_ENABLE_OPENMPTARGET) || defined(KOKKOS_ENABLE_HPX)
+#if defined(KOKKOS_ENABLE_OPENMP) || defined(KOKKOS_ENABLE_THREADS) ||         \
+    defined(KOKKOS_ENABLE_STDTHREAD) || defined(KOKKOS_ENABLE_OPENMPTARGET) || \
+    defined(KOKKOS_ENABLE_HPX)
   const int num_threads = args.num_threads;
 #endif
-#if defined(KOKKOS_ENABLE_THREADS) || defined(KOKKOS_ENABLE_OPENMPTARGET)
+#if defined(KOKKOS_ENABLE_THREADS) || defined(KOKKOS_ENABLE_STDTHREAD) || \
+    defined(KOKKOS_ENABLE_OPENMPTARGET)
   const int use_numa = args.num_numa;
 #endif
 #if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_ROCM)
@@ -163,6 +165,22 @@ void initialize_internal(const InitArguments& args) {
     // initialized" << std::endl ;
   }
 #endif
+
+#if defined(KOKKOS_ENABLE_STDTHREAD)
+  if (std::is_same<Kokkos::StdThread, Kokkos::DefaultExecutionSpace>::value ||
+      std::is_same<Kokkos::StdThread,
+                   Kokkos::HostSpace::execution_space>::value) {
+    if (num_threads > 0) {
+      if (use_numa > 0) {
+        Kokkos::StdThread::impl_initialize(num_threads, use_numa);
+      } else {
+        Kokkos::StdThread::impl_initialize(num_threads);
+      }
+    } else {
+      Kokkos::StdThread::impl_initialize();
+    }
+  }
+#endif  // defined(KOKKOS_ENABLE_STDTHREAD)
 
 #if defined(KOKKOS_ENABLE_HPX)
   if (std::is_same<Kokkos::Experimental::HPX,
@@ -364,6 +382,16 @@ void finalize_internal(const bool all_spaces = false) {
   }
 #endif
 
+#if defined(KOKKOS_ENABLE_STDTHREAD)
+  if (std::is_same<Kokkos::StdThread, Kokkos::DefaultExecutionSpace>::value ||
+      std::is_same<Kokkos::StdThread,
+                   Kokkos::HostSpace::execution_space>::value ||
+      all_spaces) {
+    if (Kokkos::StdThread::impl_is_initialized())
+      Kokkos::StdThread::impl_finalize();
+  }
+#endif  // defined(KOKKOS_ENABLE_STDTHREAD)
+
 #if defined(KOKKOS_ENABLE_SERIAL)
 #ifdef KOKKOS_ENABLE_DEPRECATED_CODE
   if (Kokkos::Serial::is_initialized()) Kokkos::Serial::finalize();
@@ -406,6 +434,14 @@ void fence_internal() {
       std::is_same<Kokkos::Threads,
                    Kokkos::HostSpace::execution_space>::value) {
     Kokkos::Threads::impl_static_fence();
+  }
+#endif
+
+#if defined(KOKKOS_ENABLE_STDTHREAD)
+  if (std::is_same<Kokkos::StdThread, Kokkos::DefaultExecutionSpace>::value ||
+      std::is_same<Kokkos::StdThread,
+                   Kokkos::HostSpace::execution_space>::value) {
+    Kokkos::StdThread::impl_static_fence();
   }
 #endif
 
@@ -863,6 +899,12 @@ void print_configuration(std::ostream& out, const bool detail) {
 #else
   msg << "no" << std::endl;
 #endif
+  msg << "  KOKKOS_ENABLE_STDTHREAD: ";
+#ifdef KOKKOS_ENABLE_STDTHREAD
+  msg << "yes" << std::endl;
+#else
+  msg << "no" << std::endl;
+#endif
   msg << "  KOKKOS_ENABLE_QTHREADS: ";
 #ifdef KOKKOS_ENABLE_QTHREADS
   msg << "yes" << std::endl;
@@ -1107,6 +1149,9 @@ void print_configuration(std::ostream& out, const bool detail) {
 #endif
 #if defined(KOKKOS_ENABLE_THREADS)
   Threads::print_configuration(msg, detail);
+#endif
+#if defined(KOKKOS_ENABLE_STDTHREAD)
+  StdThread::print_configuration(msg, detail);
 #endif
 #ifdef KOKKOS_ENABLE_QTHREADS
   Qthreads::print_configuration(msg, detail);

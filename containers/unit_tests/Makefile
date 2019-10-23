@@ -7,6 +7,7 @@ vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/openmp
 vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/hpx
 vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/serial
 vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/threads
+vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/stdthread
 vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/rocm
 vpath %.cpp ${KOKKOS_PATH}/containers/unit_tests/cuda
 
@@ -88,6 +89,12 @@ ifeq ($(KOKKOS_INTERNAL_USE_PTHREADS), 1)
 	TEST_TARGETS += test-threads
 endif
 
+ifeq ($(KOKKOS_INTERNAL_USE_STDTHREAD), 1)
+	OBJ_STDTHREAD = UnitTestMain.o gtest-all.o
+	TARGETS += KokkosContainers_UnitTest_StdThread
+	TEST_TARGETS += test-stdthread
+endif
+
 ifeq ($(KOKKOS_INTERNAL_USE_OPENMP), 1)
 	OBJ_OPENMP = UnitTestMain.o gtest-all.o
 	OBJ_OPENMP += TestOpenMP_BitSet.o
@@ -153,6 +160,9 @@ KokkosContainers_UnitTest_ROCm: $(OBJ_ROCM) $(KOKKOS_LINK_DEPENDS)
 
 KokkosContainers_UnitTest_Threads: $(OBJ_THREADS) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(EXTRA_PATH) $(OBJ_THREADS) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosContainers_UnitTest_Threads
+
+KokkosContainers_UnitTest_StdThread: $(OBJ_STDTHREAD) $(KOKKOS_LINK_DEPENDS)
+	$(LINK) $(EXTRA_PATH) $(OBJ_STDTHREAD) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosContainers_UnitTest_StdThread
 
 KokkosContainers_UnitTest_OpenMP: $(OBJ_OPENMP) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(EXTRA_PATH) $(OBJ_OPENMP) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosContainers_UnitTest_OpenMP

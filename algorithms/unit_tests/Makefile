@@ -43,6 +43,12 @@ ifeq ($(KOKKOS_INTERNAL_USE_PTHREADS), 1)
 	TEST_TARGETS += test-threads
 endif
 
+ifeq ($(KOKKOS_INTERNAL_USE_STDTHREAD), 1)
+	OBJ_THREADS = TestStdThread.o UnitTestMain.o gtest-all.o
+	TARGETS += KokkosAlgorithms_UnitTest_StdThread
+	TEST_TARGETS += test-stdthread
+endif
+
 ifeq ($(KOKKOS_INTERNAL_USE_OPENMP), 1)
 	OBJ_OPENMP = TestOpenMP.o UnitTestMain.o gtest-all.o
 	TARGETS += KokkosAlgorithms_UnitTest_OpenMP
@@ -70,6 +76,9 @@ KokkosAlgorithms_UnitTest_ROCm: $(OBJ_ROCM) $(KOKKOS_LINK_DEPENDS)
 KokkosAlgorithms_UnitTest_Threads: $(OBJ_THREADS) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(EXTRA_PATH) $(OBJ_THREADS) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosAlgorithms_UnitTest_Threads
 
+KokkosAlgorithms_UnitTest_StdThread: $(OBJ_THREADS) $(KOKKOS_LINK_DEPENDS)
+	$(LINK) $(EXTRA_PATH) $(OBJ_THREADS) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosAlgorithms_UnitTest_StdThread
+
 KokkosAlgorithms_UnitTest_OpenMP: $(OBJ_OPENMP) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(EXTRA_PATH) $(OBJ_OPENMP) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosAlgorithms_UnitTest_OpenMP
 
@@ -87,6 +96,9 @@ test-rocm: KokkosAlgorithms_UnitTest_ROCm
 
 test-threads: KokkosAlgorithms_UnitTest_Threads
 	./KokkosAlgorithms_UnitTest_Threads
+
+test-stdthread: KokkosAlgorithms_UnitTest_StdThread
+	./KokkosAlgorithms_UnitTest_StdThread
 
 test-openmp: KokkosAlgorithms_UnitTest_OpenMP
 	./KokkosAlgorithms_UnitTest_OpenMP

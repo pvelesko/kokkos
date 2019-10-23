@@ -112,6 +112,10 @@ class HPX;  ///< Execution space with HPX back-end.
 class Threads;  ///< Execution space with pthreads back-end.
 #endif
 
+#if defined(KOKKOS_ENABLE_STDTHREAD)
+class StdThread;  ///< Execution space with std::thread back-end.
+#endif
+
 #if defined(KOKKOS_ENABLE_OPENMP)
 class OpenMP;  ///< OpenMP execution space.
 #endif
@@ -162,6 +166,8 @@ typedef Experimental::ROCm DefaultExecutionSpace;
 typedef OpenMP DefaultExecutionSpace;
 #elif defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_THREADS)
 typedef Threads DefaultExecutionSpace;
+#elif defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_STDTHREAD)
+typedef StdThread DefaultExecutionSpace;
 //#elif defined( KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_QTHREADS )
 //  typedef Qthreads DefaultExecutionSpace;
 #elif defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_HPX)
@@ -170,7 +176,7 @@ typedef Kokkos::Experimental::HPX DefaultExecutionSpace;
 typedef Serial DefaultExecutionSpace;
 #else
 #error \
-    "At least one of the following execution spaces must be defined in order to use Kokkos: Kokkos::Cuda, Kokkos::Experimental::OpenMPTarget, Kokkos::OpenMP, Kokkos::Threads, Kokkos::Qthreads, or Kokkos::Serial."
+    "At least one of the following execution spaces must be defined in order to use Kokkos: Kokkos::Cuda, Kokkos::Experimental::OpenMPTarget, Kokkos::OpenMP, Kokkos::Threads, Kokkos::StdThread, Kokkos::Qthreads, or Kokkos::Serial."
 #endif
 
 #if defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMP)
@@ -185,6 +191,8 @@ typedef Serial DefaultHostExecutionSpace;
 typedef OpenMP DefaultHostExecutionSpace;
 #elif defined(KOKKOS_ENABLE_THREADS)
 typedef Threads DefaultHostExecutionSpace;
+#elif defined(KOKKOS_ENABLE_STDTHREAD)
+typedef StdThread DefaultHostExecutionSpace;
 //#elif defined( KOKKOS_ENABLE_QTHREADS )
 //  typedef Qthreads DefaultHostExecutionSpace;
 #elif defined(KOKKOS_ENABLE_HPX)

@@ -6,6 +6,7 @@ vpath %.cpp ${KOKKOS_PATH}/core/unit_test
 vpath %.cpp ${KOKKOS_PATH}/core/unit_test/default
 vpath %.cpp ${KOKKOS_PATH}/core/unit_test/serial
 vpath %.cpp ${KOKKOS_PATH}/core/unit_test/threads
+vpath %.cpp ${KOKKOS_PATH}/core/unit_test/stdthread
 vpath %.cpp ${KOKKOS_PATH}/core/unit_test/openmp
 vpath %.cpp ${KOKKOS_PATH}/core/unit_test/openmptarget
 vpath %.cpp ${KOKKOS_PATH}/core/unit_test/qthreads
@@ -168,6 +169,15 @@ ifeq ($(KOKKOS_INTERNAL_USE_PTHREADS), 1)
     TARGETS += KokkosCore_UnitTest_Threads
 
     TEST_TARGETS += test-threads
+endif
+
+ifeq ($(KOKKOS_INTERNAL_USE_STDTHREAD), 1)
+    OBJ_STDTHREAD = UnitTestMainInit.o gtest-all.o
+    OBJ_STDTHREAD += TestStdThread_Init.o
+
+    TARGETS += KokkosCore_UnitTest_StdThread
+
+    TEST_TARGETS += test-stdthread
 endif
 
 ifeq ($(KOKKOS_INTERNAL_USE_OPENMP), 1)
@@ -394,6 +404,9 @@ KokkosCore_UnitTest_ROCm: $(OBJ_ROCM) $(KOKKOS_LINK_DEPENDS)
 KokkosCore_UnitTest_Threads: $(OBJ_THREADS) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(EXTRA_PATH) $(OBJ_THREADS) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosCore_UnitTest_Threads
 
+KokkosCore_UnitTest_StdThread: $(OBJ_STDTHREAD) $(KOKKOS_LINK_DEPENDS)
+	$(LINK) $(EXTRA_PATH) $(OBJ_STDTHREAD) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosCore_UnitTest_StdThread
+
 KokkosCore_UnitTest_OpenMP: $(OBJ_OPENMP) $(KOKKOS_LINK_DEPENDS)
 	$(LINK) $(EXTRA_PATH) $(OBJ_OPENMP) $(KOKKOS_LIBS) $(LIB) $(KOKKOS_LDFLAGS) $(LDFLAGS) -o KokkosCore_UnitTest_OpenMP
 
@@ -450,6 +463,9 @@ test-rocm: KokkosCore_UnitTest_ROCm
 
 test-threads: KokkosCore_UnitTest_Threads
 	./KokkosCore_UnitTest_Threads
+
+test-stdthread: KokkosCore_UnitTest_StdThread
+	./KokkosCore_UnitTest_StdThread
 
 test-openmp: KokkosCore_UnitTest_OpenMP
 	./KokkosCore_UnitTest_OpenMP

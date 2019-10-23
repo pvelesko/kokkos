@@ -43,6 +43,10 @@ ifeq ($(KOKKOS_INTERNAL_USE_PTHREADS), 1)
   OBJ_EXAMPLE_FEINT += feint_threads.o
 endif
 
+ifeq ($(KOKKOS_INTERNAL_USE_STDTHREAD), 1)
+  OBJ_EXAMPLE_FEINT += feint_stdthread.o
+endif
+
 ifeq ($(KOKKOS_INTERNAL_USE_OPENMP), 1)
   OBJ_EXAMPLE_FEINT += feint_openmp.o
 endif
