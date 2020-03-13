@@ -101,14 +101,14 @@
 #if defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_THREADS) ||  \
     defined(KOKKOS_ENABLE_OPENMP) || defined(KOKKOS_ENABLE_QTHREADS) || \
     defined(KOKKOS_ENABLE_HPX) || defined(KOKKOS_ENABLE_ROCM) ||        \
-    defined(KOKKOS_ENABLE_OPENMPTARGET)
+    defined(KOKKOS_ENABLE_OPENMPTARGET) || defined(KOKKOS_ENABLE_SYCL)
 #define KOKKOS_INTERNAL_ENABLE_NON_CUDA_BACKEND
 #endif
 
 #if !defined(KOKKOS_ENABLE_THREADS) && !defined(KOKKOS_ENABLE_CUDA) &&    \
     !defined(KOKKOS_ENABLE_OPENMP) && !defined(KOKKOS_ENABLE_QTHREADS) && \
     !defined(KOKKOS_ENABLE_HPX) && !defined(KOKKOS_ENABLE_ROCM) &&        \
-    !defined(KOKKOS_ENABLE_OPENMPTARGET)
+    !defined(KOKKOS_ENABLE_OPENMPTARGET) && !defined(KOKKOS_ENABLE_SYCL)
 #define KOKKOS_INTERNAL_NOT_PARALLEL
 #endif
 
@@ -192,8 +192,6 @@
 #endif
 
 #endif  // #if defined( KOKKOS_ENABLE_CUDA ) && defined( __CUDACC__ )
-
-
 
 //----------------------------------------------------------------------------
 // Mapping compiler built-ins to KOKKOS_COMPILER_*** macros
@@ -294,12 +292,12 @@
 #endif
 
 #if defined(KOKKOS_ENABLE_SYCL)
-#define KOKKOS_FORCEINLINE_FUNCTION  inline
-#define KOKKOS_INLINE_FUNCTION       inline
+#define KOKKOS_FORCEINLINE_FUNCTION inline
+#define KOKKOS_INLINE_FUNCTION inline
 #define KOKKOS_FUNCTION
-#define KOKKOS_LAMBDA                [=]
-#if defined (KOKKOS_ENABLE_CXX17) || defined (KOKKOS_ENABLE_CXX20)
-#define KOKKOS_CLASS_LAMBDA [=,*this]
+#define KOKKOS_LAMBDA [=]
+#if defined(KOKKOS_ENABLE_CXX17) || defined(KOKKOS_ENABLE_CXX20)
+#define KOKKOS_CLASS_LAMBDA [ =, *this ]
 #endif
 #endif  // #if defined(KOKKOS_ENABLE_SYCL)
 
@@ -500,7 +498,7 @@ define KOKKOS_FORCEINLINE_FUNCTION inline
 // There is zero or one default execution space specified.
 
 #if 1 < ((defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_CUDA) ? 1 : 0) +         \
-         (defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SYCL) ? 1 : 0 ) +        \
+         (defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SYCL) ? 1 : 0) +         \
          (defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_ROCM) ? 1 : 0) +         \
          (defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMPTARGET) ? 1 : 0) + \
          (defined(KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_OPENMP) ? 1 : 0) +       \
@@ -546,12 +544,14 @@ define KOKKOS_FORCEINLINE_FUNCTION inline
 
 #if defined(__CUDACC__) && defined(__CUDA_ARCH__) && defined(KOKKOS_ENABLE_CUDA)
 #define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_CUDA
-#elif defined(__SYCLCC__) && (defined(__HCC_ACCELERATOR__) || \
-    defined(__CUDA_ARCH__)) && defined(KOKKOS_ENABLE_SYCL)
+#elif defined(__SYCLCC__) &&                                    \
+    (defined(__HCC_ACCELERATOR__) || defined(__CUDA_ARCH__)) && \
+    defined(KOKKOS_ENABLE_SYCL)
 #define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_SYCL_GPU
 #elif defined(__HCC__) && defined(__HCC_ACCELERATOR__) && \
     defined(KOKKOS_ENABLE_ROCM)
 #define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_ROCM_GPU
+#elif define KOKKOS_ENABLE_SYCL
 #else
 #define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST
 #endif
