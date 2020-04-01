@@ -171,7 +171,7 @@ void SYCLInternal::initialize( int sycl_device_id  )
 
   enum { WordSize = sizeof(size_type) };
 
-  if ( ! HostSpace::execution_space::impl_is_initialized() ) {
+  if ( ! HostSpace::execution_space::is_initialized() ) {
     const std::string msg("SYCL::initialize ERROR : HostSpace::execution_space is not initialized");
     Kokkos::Impl::throw_runtime_exception( msg );
   }
@@ -200,26 +200,23 @@ void SYCLInternal::initialize( int sycl_device_id  )
 	 listDevices();
 
 	 {
-		 auto dlist = cl::sycl::device::get_devices();
-		 cl::sycl::device& d = dlist[m_syclDev];
-//		 bool is_accelerator = d.is_accelerator() || d.is_gpu();
-		 bool is_cpu = d.is_cpu();
-
-		 if ( !is_cpu ) {
-			 std::cerr << "WARNING: Device " << m_syclDev << " is NOT a CPU. Just so you know..." << std::endl;
-			 std::cerr << "Will initialize first CPU device instead..." << std::endl;
-			 bool cpu_found=false;
-			 for(int i=0; i < dlist.size() && !cpu_found; ++i ) {
-				 if ( dlist[i].is_cpu() ) {
-					 m_syclDev=i;
-					 cpu_found=true;
-				 }
-			 }
-		 }
-		 std::cout << "Initializing SYCL Device " << m_syclDev << std::endl;
-		 m_queue = new cl::sycl::queue(dlist[m_syclDev]);
-
-	 }
+                 auto dlist = cl::sycl::device::get_devices();
+                 cl::sycl::device& d = dlist[m_syclDev];
+                 bool is_acc = d.is_accelerator() || d.is_gpu();
+                 //bool is_cpu = d.is_cpu();
+                 if ( !is_acc ) {
+                         std::cerr << "WARNING: Device " << m_syclDev << " is NOT a GPU. Just so you know..." << std::endl;
+                         std::cerr << "Will initialize first GPU device instead..." << std::endl;
+                         bool found=false;
+                         for(int i=0; i < dlist.size() && !found; ++i ) {
+                                 if ( dlist[i].is_gpu() || dlist[i].is_accelerator() ) {
+                                         m_syclDev=i;
+                                         found=true;
+                                 }
+                         }
+                 }
+                 std::cout << "Initializing SYCL Device " << m_syclDev << std::endl;
+                 m_queue = new cl::sycl::queue(dlist[m_syclDev]);	 }
 
 
 
