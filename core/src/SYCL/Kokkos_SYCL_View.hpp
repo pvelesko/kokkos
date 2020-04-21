@@ -45,164 +45,19 @@
 #define KOKKOS_EXPERIMENTAL_SYCL_VIEW_HPP
 
 #include <Kokkos_Macros.hpp>
-asdsadasd
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
 namespace Kokkos {
 namespace Impl {
 
-// Cuda Texture fetches can be performed for 4, 8 and 16 byte objects
-// (int,int2,int4) Via reinterpret_case this can be used to support all scalar
-// types of those sizes. Any other scalar type falls back to either normal reads
-// out of global memory, or using the __ldg intrinsic on Kepler GPUs or newer
-// (Compute Capability >= 3.0)
-
-template <typename ValueType, typename AliasType>
-struct CudaTextureFetch {
-  ::cudaTextureObject_t m_obj;
-  const ValueType* m_ptr;
-  int m_offset;
-
-  // Deference operator pulls through texture object and returns by value
-  template <typename iType>
-  KOKKOS_INLINE_FUNCTION ValueType operator[](const iType& i) const {
-#if defined(__CUDA_ARCH__) && (300 <= __CUDA_ARCH__)
-    AliasType v = tex1Dfetch<AliasType>(m_obj, i + m_offset);
-    return *(reinterpret_cast<ValueType*>(&v));
-#else
-    return m_ptr[i];
-#endif
-  }
-
-  // Pointer to referenced memory
-  KOKKOS_INLINE_FUNCTION
-  operator const ValueType*() const { return m_ptr; }
-
-  KOKKOS_INLINE_FUNCTION
-  CudaTextureFetch() : m_obj(), m_ptr(), m_offset() {}
-
-  KOKKOS_INLINE_FUNCTION
-  ~CudaTextureFetch() {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaTextureFetch(const CudaTextureFetch& rhs)
-      : m_obj(rhs.m_obj), m_ptr(rhs.m_ptr), m_offset(rhs.m_offset) {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaTextureFetch(CudaTextureFetch&& rhs)
-      : m_obj(rhs.m_obj), m_ptr(rhs.m_ptr), m_offset(rhs.m_offset) {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaTextureFetch& operator=(const CudaTextureFetch& rhs) {
-    m_obj    = rhs.m_obj;
-    m_ptr    = rhs.m_ptr;
-    m_offset = rhs.m_offset;
-    return *this;
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  CudaTextureFetch& operator=(CudaTextureFetch&& rhs) {
-    m_obj    = rhs.m_obj;
-    m_ptr    = rhs.m_ptr;
-    m_offset = rhs.m_offset;
-    return *this;
-  }
-
-  // Texture object spans the entire allocation.
-  // This handle may view a subset of the allocation, so an offset is required.
-  template <class CudaMemorySpace>
-  inline explicit CudaTextureFetch(
-      const ValueType* const arg_ptr,
-      Kokkos::Impl::SharedAllocationRecord<CudaMemorySpace, void>* record)
-      : m_obj(record->template attach_texture_object<AliasType>()),
-        m_ptr(arg_ptr),
-        m_offset(record->attach_texture_object_offset(
-            reinterpret_cast<const AliasType*>(arg_ptr))) {}
-
-  // Texture object spans the entire allocation.
-  // This handle may view a subset of the allocation, so an offset is required.
-  KOKKOS_INLINE_FUNCTION
-  CudaTextureFetch(const CudaTextureFetch& rhs, size_t offset)
-      : m_obj(rhs.m_obj),
-        m_ptr(rhs.m_ptr + offset),
-        m_offset(offset + rhs.m_offset) {}
-};
-
-#if defined(KOKKOS_ENABLE_CUDA_LDG_INTRINSIC)
-
-template <typename ValueType, typename AliasType>
-struct CudaLDGFetch {
-  const ValueType* m_ptr;
-
-  template <typename iType>
-  KOKKOS_INLINE_FUNCTION ValueType operator[](const iType& i) const {
-#ifdef __CUDA_ARCH__
-    AliasType v = __ldg(reinterpret_cast<const AliasType*>(&m_ptr[i]));
-    return *(reinterpret_cast<ValueType*>(&v));
-#else
-    return m_ptr[i];
-#endif
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  operator const ValueType*() const { return m_ptr; }
-
-  KOKKOS_INLINE_FUNCTION
-  CudaLDGFetch() : m_ptr() {}
-
-  KOKKOS_INLINE_FUNCTION
-  ~CudaLDGFetch() {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaLDGFetch(const CudaLDGFetch& rhs) : m_ptr(rhs.m_ptr) {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaLDGFetch(CudaLDGFetch&& rhs) : m_ptr(rhs.m_ptr) {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaLDGFetch& operator=(const CudaLDGFetch& rhs) {
-    m_ptr = rhs.m_ptr;
-    return *this;
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  CudaLDGFetch& operator=(CudaLDGFetch&& rhs) {
-    m_ptr = rhs.m_ptr;
-    return *this;
-  }
-
-  template <class CudaMemorySpace>
-  inline explicit CudaLDGFetch(
-      const ValueType* const arg_ptr,
-      Kokkos::Impl::SharedAllocationRecord<CudaMemorySpace, void>*)
-      : m_ptr(arg_ptr) {}
-
-  KOKKOS_INLINE_FUNCTION
-  CudaLDGFetch(CudaLDGFetch const rhs, size_t offset)
-      : m_ptr(rhs.m_ptr + offset) {}
-};
-
-#endif
-
-}  // namespace Impl
-}  // namespace Kokkos
-
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-
-namespace Kokkos {
-namespace Impl {
-
-/** \brief  Replace Default ViewDataHandle with Cuda texture fetch
- * specialization if 'const' value type, CudaSpace and random access.
+/** \brief  Replace Default ViewDataHandle
  */
 template <class Traits>
 class ViewDataHandle<
     Traits, typename std::enable_if<
-                // Is Cuda memory space
-                std::is_same<typename Traits::memory_space,
-                              Kokkos::Experimental::SYCLHostUSMSpace>::value> {
+      std::is_same<typename Traits::memory_space, Kokkos::Experimental::SYCLHostUSMSpace>::value>
+      > {
  public:
 //  using track_type = Kokkos::Impl::SharedAllocationTracker;
 //
@@ -254,7 +109,7 @@ class ViewDataHandle<
 //      Kokkos::abort(
 //          "Cuda const random access View using Cuda texture memory requires "
 //          "Kokkos to allocate the View's memory");
-    }
+    };
 
 }  // namespace Impl
 }  // namespace Kokkos

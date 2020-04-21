@@ -55,7 +55,7 @@
 #include <Kokkos_SYCL_Space.hpp>
 #include <SYCL/Kokkos_SYCL_Instance.hpp>
 #include <impl/Kokkos_Error.hpp>
-#include <Kokkos_SYCL_View.hpp>
+#include <SYCL/Kokkos_SYCL_View.hpp>
 
 /*--------------------------------------------------------------------------*/
 /* Standard 'C' libraries */
