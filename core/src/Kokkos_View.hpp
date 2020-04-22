@@ -519,6 +519,9 @@ namespace Kokkos {
 
 template <class DataType, class... Properties>
 class View;
+template <class DataType, class... Properties>
+class ViewTest;
+
 
 template <class>
 struct is_view : public std::false_type {};
@@ -2191,6 +2194,218 @@ class View : public ViewTraits<DataType, Properties...> {
 
 #endif
   }
+};
+
+template <class DataType, class... Properties>
+class ViewTest : public ViewTraits<DataType, Properties...> {
+  public:
+  ViewTest() {};
+
+ private:
+  template <class, class...>
+  friend class View;
+  template <class, class...>
+  friend class Kokkos::Impl::ViewMapping;
+
+ public:
+  typedef ViewTraits<DataType, Properties...> traits;
+
+ private:
+  typedef Kokkos::Impl::ViewMapping<traits, typename traits::specialize>
+      map_type;
+  typedef Kokkos::Impl::SharedAllocationTracker track_type;
+
+  track_type* m_track;
+  map_type* m_map;
+ public:
+  //----------------------------------------
+  /** \brief  Compatible view of array of scalar types */
+  typedef View<typename traits::scalar_array_type,
+               typename traits::array_layout, typename traits::device_type,
+               typename traits::memory_traits>
+      array_type;
+
+  /** \brief  Compatible view of const data type */
+  typedef View<typename traits::const_data_type, typename traits::array_layout,
+               typename traits::device_type, typename traits::memory_traits>
+      const_type;
+
+  /** \brief  Compatible view of non-const data type */
+  typedef View<typename traits::non_const_data_type,
+               typename traits::array_layout, typename traits::device_type,
+               typename traits::memory_traits>
+      non_const_type;
+
+  /** \brief  Compatible HostMirror view */
+  typedef View<typename traits::non_const_data_type,
+               typename traits::array_layout,
+               typename traits::host_mirror_space>
+      HostMirror;
+
+  /** \brief  Compatible HostMirror view */
+  typedef View<typename traits::non_const_data_type,
+               typename traits::array_layout,
+               typename traits::host_mirror_space>
+      host_mirror_type;
+
+  /** \brief Unified types */
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::type uniform_type;
+  typedef
+      typename Impl::ViewUniformType<ViewTest, 0>::const_type uniform_const_type;
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::runtime_type
+      uniform_runtime_type;
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::runtime_const_type
+      uniform_runtime_const_type;
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::nomemspace_type
+      uniform_nomemspace_type;
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::const_nomemspace_type
+      uniform_const_nomemspace_type;
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::runtime_nomemspace_type
+      uniform_runtime_nomemspace_type;
+  typedef typename Impl::ViewUniformType<ViewTest, 0>::runtime_const_nomemspace_type
+      uniform_runtime_const_nomemspace_type;
+  
+  //----------------------------------------
+  // Domain rank and extents
+
+  enum { Rank = map_type::Rank };
+
+  /** \brief rank() to be implemented
+   */
+  // KOKKOS_INLINE_FUNCTION
+  // static
+  // constexpr unsigned rank() { return map_type::Rank; }
+
+  template <typename iType>
+  KOKKOS_INLINE_FUNCTION constexpr
+      typename std::enable_if<std::is_integral<iType>::value, size_t>::type
+      extent(const iType& r) const noexcept {
+    return m_map->extent(r);
+  }
+
+  static KOKKOS_INLINE_FUNCTION constexpr size_t static_extent(
+      const unsigned r) noexcept {
+    return map_type::static_extent(r);
+  }
+
+  template <typename iType>
+  KOKKOS_INLINE_FUNCTION constexpr
+      typename std::enable_if<std::is_integral<iType>::value, int>::type
+      extent_int(const iType& r) const noexcept {
+    return static_cast<int>(m_map->extent(r));
+  }
+
+  KOKKOS_INLINE_FUNCTION constexpr typename traits::array_layout layout()
+      const {
+    return m_map->layout();
+  }
+  
+  //----------------------------------------
+
+  KOKKOS_INLINE_FUNCTION constexpr size_t size() const {
+    return m_map->dimension_0() * m_map->dimension_1() * m_map->dimension_2() *
+           m_map->dimension_3() * m_map->dimension_4() * m_map->dimension_5() *
+           m_map->dimension_6() * m_map->dimension_7();
+  }
+
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_0() const {
+    return m_map->stride_0();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_1() const {
+    return m_map->stride_1();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_2() const {
+    return m_map->stride_2();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_3() const {
+    return m_map->stride_3();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_4() const {
+    return m_map->stride_4();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_5() const {
+    return m_map->stride_5();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_6() const {
+    return m_map->stride_6();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr size_t stride_7() const {
+    return m_map->stride_7();
+  }
+
+  template <typename iType>
+  KOKKOS_INLINE_FUNCTION constexpr
+      typename std::enable_if<std::is_integral<iType>::value, size_t>::type
+      stride(iType r) const {
+    return (
+        r == 0
+            ? m_map->stride_0()
+            : (r == 1
+                   ? m_map->stride_1()
+                   : (r == 2
+                          ? m_map->stride_2()
+                          : (r == 3
+                                 ? m_map->stride_3()
+                                 : (r == 4
+                                        ? m_map->stride_4()
+                                        : (r == 5
+                                               ? m_map->stride_5()
+                                               : (r == 6
+                                                      ? m_map->stride_6()
+                                                      : m_map->stride_7())))))));
+  }
+
+  template <typename iType>
+  KOKKOS_INLINE_FUNCTION void stride(iType* const s) const {
+    m_map->stride(s);
+  }
+
+  //----------------------------------------
+  // Range span is the span which contains all members.
+
+  typedef typename map_type::reference_type reference_type;
+  typedef typename map_type::pointer_type pointer_type;
+
+  enum {
+    reference_type_is_lvalue_reference =
+        std::is_lvalue_reference<reference_type>::value
+  };
+
+  KOKKOS_INLINE_FUNCTION constexpr size_t span() const { return m_map->span(); }
+#ifdef KOKKOS_ENABLE_DEPRECATED_CODE
+  // Deprecated, use 'span()' instead
+  KOKKOS_INLINE_FUNCTION constexpr size_t capacity() const {
+    return m_map->span();
+  }
+#endif
+  KOKKOS_INLINE_FUNCTION bool span_is_contiguous() const {
+    return m_map->span_is_contiguous();
+  }
+  KOKKOS_INLINE_FUNCTION constexpr pointer_type data() const {
+    return m_map->data();
+  }
+
+#ifdef KOKKOS_ENABLE_DEPRECATED_CODE
+  // Deprecated, use 'span_is_contigous()' instead
+  KOKKOS_INLINE_FUNCTION constexpr bool is_contiguous() const {
+    return m_map->span_is_contiguous();
+  }
+  // Deprecated, use 'data()' instead
+  KOKKOS_INLINE_FUNCTION constexpr pointer_type ptr_on_device() const {
+    return m_map->data();
+  }
+#endif
+
+
+
+
+  //----------------------------------------
+  /*  Deprecate all 'dimension' functions in favor of
+   *  ISO/C++ vocabulary 'extent'.
+   */
+
+
+
 };
 
 /** \brief Temporary free function rank()
