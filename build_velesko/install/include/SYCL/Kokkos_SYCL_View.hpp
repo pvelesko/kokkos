@@ -1,0 +1,120 @@
+/*
+//@HEADER
+// ************************************************************************
+//
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+//
+// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// the U.S. Government retains certain rights in this software.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright
+// notice, this list of conditions and the following disclaimer in the
+// documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the Corporation nor the names of the
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY SANDIA CORPORATION "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SANDIA CORPORATION OR THE
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Questions? Contact Christian R. Trott (crtrott@sandia.gov)
+//
+// ************************************************************************
+//@HEADER
+*/
+
+#ifndef KOKKOS_EXPERIMENTAL_SYCL_VIEW_HPP
+#define KOKKOS_EXPERIMENTAL_SYCL_VIEW_HPP
+
+#include <Kokkos_Macros.hpp>
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+namespace Kokkos {
+namespace Impl {
+
+/** \brief  Replace Default ViewDataHandle
+ */
+template <class Traits>
+class ViewDataHandle<
+    Traits, typename std::enable_if<
+      std::is_same<typename Traits::memory_space, Kokkos::Experimental::SYCLHostUSMSpace>::value>
+      > {
+ public:
+//  using track_type = Kokkos::Impl::SharedAllocationTracker;
+//
+//  using value_type  = typename Traits::const_value_type;
+//  using return_type = typename Traits::const_value_type;  // NOT a reference
+//
+//  using alias_type = typename std::conditional<
+//      (sizeof(value_type) == 4), int,
+//      typename std::conditional<
+//          (sizeof(value_type) == 8), ::int2,
+//          typename std::conditional<(sizeof(value_type) == 16), ::int4,
+//                                    void>::type>::type>::type;
+//
+//#if defined(KOKKOS_ENABLE_CUDA_LDG_INTRINSIC)
+//  using handle_type = Kokkos::Impl::CudaLDGFetch<value_type, alias_type>;
+//#else
+//  using handle_type = Kokkos::Impl::CudaTextureFetch<value_type, alias_type>;
+//#endif
+//
+//  KOKKOS_INLINE_FUNCTION
+//  static handle_type const& assign(handle_type const& arg_handle,
+//                                   track_type const& /* arg_tracker */) {
+//    return arg_handle;
+//  }
+//
+//  KOKKOS_INLINE_FUNCTION
+//  static handle_type const assign(handle_type const& arg_handle,
+//                                  size_t offset) {
+//    return handle_type(arg_handle, offset);
+//  }
+//
+//  KOKKOS_INLINE_FUNCTION
+//  static handle_type assign(value_type* arg_data_ptr,
+//                            track_type const& arg_tracker) {
+//    if (arg_data_ptr == NULL) return handle_type();
+//
+//#if defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST)
+//    // Assignment of texture = non-texture requires creation of a texture object
+//    // which can only occur on the host.  In addition, 'get_record' is only
+//    // valid if called in a host execution space
+//
+//    typedef typename Traits::memory_space memory_space;
+//    typedef typename Impl::SharedAllocationRecord<memory_space, void> record;
+//
+//    record* const r = arg_tracker.template get_record<memory_space>();
+//
+//#if !defined(KOKKOS_ENABLE_CUDA_LDG_INTRINSIC)
+//    if (0 == r) {
+//      Kokkos::abort(
+//          "Cuda const random access View using Cuda texture memory requires "
+//          "Kokkos to allocate the View's memory");
+    };
+
+}  // namespace Impl
+}  // namespace Kokkos
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+#endif /* #ifndef KOKKOS_SYCL_VIEW_HPP */
