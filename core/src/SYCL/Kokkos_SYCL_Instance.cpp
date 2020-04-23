@@ -216,8 +216,10 @@ void SYCLInternal::initialize( int sycl_device_id  )
                                  }
                          }
                  }
-                 std::cout << "Initializing SYCL Device " << m_syclDev << std::endl;
-                 m_queue = new cl::sycl::queue(dlist[m_syclDev]);	 }
+                 //std::cout << "Initializing SYCL Device " << d.get_info<cl::sycl::info::device::name>() << std::endl;
+                 // Velesko - this doesn't select GPU.. use selector for now
+                 m_queue = new cl::sycl::queue(cl::sycl::gpu_selector{});	 }
+                 std::cout << "Initialized SYCL Device " << m_queue->get_device().get_info<cl::sycl::info::device::name>() << std::endl;
 
 
 
