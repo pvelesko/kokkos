@@ -50,17 +50,22 @@ struct ParallelFor< FunctorType
       //std::cerr << "Setting range = " << extent << std::endl;
       cl::sycl::range<1> dispatch_range(extent);
 
+      auto qq = *(m_policy.space().impl_internal_space_instance()->m_queue);
       m_policy.space().impl_internal_space_instance()->m_queue->submit([&] (cl::sycl::handler& cgh) {
+      std::cout << "Kernel Layout: "   << (std::is_standard_layout<decltype(m_functor)>::value == 1 ? "pass" : "fail")    << std::endl;
+      std::cout << "Kernel Copyable: " << (std::is_trivially_copyable<decltype(m_functor)>::value == 1 ? "pass" : "fail") << std::endl;
 
+			auto mm_functor = m_functor;
 			// cl::sycl::stream out(4096,1024,cgh);
           cgh.parallel_for(dispatch_range,
 				  	  [=](cl::sycl::id<1> item) {
         	  	  	   	   // out << item[0] << sycl::endl;
-        	  	  	   	   m_functor( static_cast<const int>(item[0]) );
+        	  	  	   	   //m_functor(0);
+        	  	  	   	   mm_functor( static_cast<const int>(item[0]) );
           	  });
 	        });
 
-		m_policy.space().impl_internal_space_instance()->m_queue->wait();
+		m_policy.space().impl_internal_space_instance()->m_queue->wait_and_throw();
     }
 
   ParallelFor( const FunctorType  & arg_functor ,

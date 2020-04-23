@@ -40,7 +40,7 @@
 // ************************************************************************
 //@HEADER
 */
-
+#include "CL/sycl.hpp"
 #ifndef KOKKOS_VIEW_HPP
 #define KOKKOS_VIEW_HPP
 
@@ -1722,8 +1722,11 @@ class View : public ViewTraits<DataType, Properties...> {
   //----------------------------------------
   // Standard destructor, constructors, and assignment operators
 
+#ifndef __SYCL_DEVICE_ONLY__
+
   KOKKOS_INLINE_FUNCTION
   ~View() {}
+
 
   //KOKKOS_INLINE_FUNCTION
   //View() : (*m_track)(), (*m_map)() {}
@@ -1776,7 +1779,6 @@ class View : public ViewTraits<DataType, Properties...> {
     m_map = new map_type(std::move(*(rhs.m_map)));
     return *this;
   }
-
   //----------------------------------------
   // Compatible view copy constructor and assignment
   // may assign unmanaged from managed.
@@ -1786,15 +1788,16 @@ class View : public ViewTraits<DataType, Properties...> {
       const View<RT, RP...>& rhs,
       typename std::enable_if<Kokkos::Impl::ViewMapping<
           traits, typename View<RT, RP...>::traits,
-          typename traits::specialize>::is_assignable_data_type>::type* = 0)
-      : (*m_track)(rhs.(*m_track), traits::is_managed), (*m_map)() {
+          typename traits::specialize>::is_assignable_data_type>::type* = 0) {
+    m_track = new track_type(*(rhs.m_track));
+    m_map = new map_type(*(rhs.m_map));
     typedef typename View<RT, RP...>::traits SrcTraits;
     typedef Kokkos::Impl::ViewMapping<traits, SrcTraits,
                                       typename traits::specialize>
         Mapping;
     static_assert(Mapping::is_assignable,
                   "Incompatible View copy construction");
-    Mapping::assign((*m_map), rhs.(*m_map), rhs.(*m_track));
+    Mapping::assign((*m_map), *(rhs.m_map), *(rhs.m_track));
   }
 
   template <class RT, class... RP>
@@ -1809,8 +1812,8 @@ class View : public ViewTraits<DataType, Properties...> {
                                       typename traits::specialize>
         Mapping;
     static_assert(Mapping::is_assignable, "Incompatible View copy assignment");
-    Mapping::assign((*m_map), rhs.(*m_map), rhs.(*m_track));
-    (*m_track).assign(rhs.(*m_track), traits::is_managed);
+    Mapping::assign((*m_map), *(rhs.m_map), *(rhs.m_track));
+    (*m_track).assign(*(rhs.m_track), traits::is_managed);
     return *this;
   }
 
@@ -1820,8 +1823,9 @@ class View : public ViewTraits<DataType, Properties...> {
 
   template <class RT, class... RP, class Arg0, class... Args>
   KOKKOS_INLINE_FUNCTION View(const View<RT, RP...>& src_view, const Arg0 arg0,
-                              Args... args)
-      : (*m_track)(src_view.(*m_track), traits::is_managed), (*m_map)() {
+                              Args... args) {
+    m_track = new track_type(*(src_view.m_track), traits::is_managed);
+    m_map = new map_type();
     typedef View<RT, RP...> SrcType;
 
     typedef Kokkos::Impl::ViewMapping<void /* deduce destination view type from
@@ -1837,9 +1841,10 @@ class View : public ViewTraits<DataType, Properties...> {
                                   typename traits::specialize>::is_assignable,
         "Subview construction requires compatible view and subview arguments");
 
-    Mapping::assign((*m_map), src_view.(*m_map), arg0, args...);
+    Mapping::assign((*m_map), *(src_view.m_map), arg0, args...);
   }
 
+#endif // SYCL DEVICE ONLY
   //----------------------------------------
   // Allocation tracking properties
 
@@ -1858,8 +1863,9 @@ class View : public ViewTraits<DataType, Properties...> {
       const Impl::ViewCtorProp<P...>& arg_prop,
       typename std::enable_if<!Impl::ViewCtorProp<P...>::has_pointer,
                               typename traits::array_layout>::type const&
-          arg_layout)
-      : (*m_track)(), (*m_map)() {
+          arg_layout) {
+    m_track = new track_type();
+    m_map = new map_type();
     // Append layout and spaces if not input
     typedef Impl::ViewCtorProp<P...> alloc_prop_input;
 
@@ -1942,10 +1948,10 @@ class View : public ViewTraits<DataType, Properties...> {
       const Impl::ViewCtorProp<P...>& arg_prop,
       typename std::enable_if<Impl::ViewCtorProp<P...>::has_pointer,
                               typename traits::array_layout>::type const&
-          arg_layout)
-      : (*m_track)()  // No memory tracking
-        ,
-        (*m_map)(arg_prop, arg_layout) {
+          arg_layout) {
+    m_track = new track_type();
+    m_map = new map_type(arg_prop, arg_layout);
+
     static_assert(
         std::is_same<pointer_type,
                      typename Impl::ViewCtorProp<P...>::pointer_type>::value,
@@ -2096,8 +2102,9 @@ class View : public ViewTraits<DataType, Properties...> {
   template <class Traits>
   KOKKOS_INLINE_FUNCTION View(
       const track_type& track,
-      const Kokkos::Impl::ViewMapping<Traits, typename Traits::specialize>& map)
-      : (*m_track)(track), (*m_map)() {
+      const Kokkos::Impl::ViewMapping<Traits, typename Traits::specialize>& map) {
+    m_track = new track_type(track);
+    m_map = new map_type();
     typedef Kokkos::Impl::ViewMapping<traits, Traits,
                                       typename traits::specialize>
         Mapping;
@@ -2226,7 +2233,7 @@ class View : public ViewTraits<DataType, Properties...> {
 template <class DataType, class... Properties>
 class ViewTest : public ViewTraits<DataType, Properties...> {
   public:
-  ViewTest() {};
+  //ViewTest() {};
 
  private:
   template <class, class...>
@@ -2244,6 +2251,23 @@ class ViewTest : public ViewTraits<DataType, Properties...> {
 
   track_type* m_track;
   map_type* m_map;
+
+ public:
+  //KOKKOS_INLINE_FUNCTION
+  //~ViewTest() {}
+
+  //KOKKOS_INLINE_FUNCTION
+  //View() : (*m_track)(), (*m_map)() {}
+  KOKKOS_INLINE_FUNCTION
+  ViewTest() {
+    m_track = new track_type();
+    m_map = new map_type();
+  }
+  int get1() const {
+    return 1;
+  }
+
+
  public:
   //----------------------------------------
   /** \brief  Compatible view of array of scalar types */

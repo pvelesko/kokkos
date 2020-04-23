@@ -218,7 +218,18 @@ void SYCLInternal::initialize( int sycl_device_id  )
                  }
                  //std::cout << "Initializing SYCL Device " << d.get_info<cl::sycl::info::device::name>() << std::endl;
                  // Velesko - this doesn't select GPU.. use selector for now
-                 m_queue = new cl::sycl::queue(cl::sycl::gpu_selector{});	 }
+
+                 auto exception_handler = [] (cl::sycl::exception_list exceptions) {
+                   for (std::exception_ptr const& e : exceptions) {
+                     try {
+                   std::rethrow_exception(e);
+                     } catch(cl::sycl::exception const& e) {
+                   std::cout << "Caught asynchronous SYCL exception:\n"
+                         << e.what() << std::endl;
+                     }
+                   }
+                 };
+                 m_queue = new cl::sycl::queue(cl::sycl::gpu_selector{}, exception_handler);	 }
                  std::cout << "Initialized SYCL Device " << m_queue->get_device().get_info<cl::sycl::info::device::name>() << std::endl;
 
 
@@ -480,7 +491,7 @@ bool SYCL::wake() { return true ; }
 
 void SYCL::fence() const
 {
-  m_space_instance->m_queue->wait();
+  m_space_instance->m_queue->wait_and_throw();
   //SYCL_SAFE_CALL( syclDeviceSynchronize() );
 }
 
