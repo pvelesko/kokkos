@@ -532,8 +532,6 @@ struct is_view<View<D, P...> > : public std::true_type {};
 template <class D, class... P>
 struct is_view<const View<D, P...> > : public std::true_type {};
 
-#define USM_HOST_ALLOC(SIZE, TYPE) malloc_host(SIZE * sizeof(TYPE), *(Kokkos::Experimental::SYCL().get_queue()))
-
 template <class DataType, class... Properties>
 class View : public ViewTraits<DataType, Properties...> {
  private:
@@ -1731,8 +1729,8 @@ class View : public ViewTraits<DataType, Properties...> {
   //View() : (*m_track)(), (*m_map)() {}
   KOKKOS_INLINE_FUNCTION
   View() {
-    m_track = new(USM_HOST_ALLOC(1, track_type)) track_type();
-    m_map = new(USM_HOST_ALLOC(1, map_type)) map_type();
+    m_track = new track_type();
+    m_map = new map_type();
   }
 
 #ifndef __SYCL_DEVICE_ONLY__
@@ -1746,8 +1744,8 @@ class View : public ViewTraits<DataType, Properties...> {
   View(const View& rhs) {
     m_track = rhs.m_track;
     m_map = rhs.m_map;
-    //m_track = new(USM_HOST_ALLOC(1, track_type)) track_type(*(rhs.m_track), traits::is_managed);
-    //m_map = new(USM_HOST_ALLOC(1, map_type)) map_type(*(rhs.m_map));
+    //m_track = new track_type(*(rhs.m_track), traits::is_managed);
+    //m_map = new map_type(*(rhs.m_map));
   }
 
   //KOKKOS_INLINE_FUNCTION
@@ -1757,8 +1755,8 @@ class View : public ViewTraits<DataType, Properties...> {
   View(View&& rhs) {
     m_track = rhs.m_track;
     m_map = rhs.m_map;
-    //m_track = new(USM_HOST_ALLOC(1, track_type)) track_type(std::move(*(rhs.m_track)));
-    //m_map = new(USM_HOST_ALLOC(1, map_type)) map_type(std::move(*(rhs.m_map)));
+    //m_track = new track_type(std::move(*(rhs.m_track)));
+    //m_map = new map_type(std::move(*(rhs.m_map)));
   }
 
   //KOKKOS_INLINE_FUNCTION
@@ -1771,8 +1769,8 @@ class View : public ViewTraits<DataType, Properties...> {
   View& operator=(const View& rhs) {
     m_track = rhs.m_track;
     m_map = rhs.m_map;
-    //m_track = new(USM_HOST_ALLOC(1, track_type)) track_type(*(rhs.m_track));
-    //m_map = new(USM_HOST_ALLOC(1, map_type)) map_type(*(rhs.m_map));
+    //m_track = new track_type(*(rhs.m_track));
+    //m_map = new map_type(*(rhs.m_map));
     return *this;
   }
 
@@ -1786,8 +1784,8 @@ class View : public ViewTraits<DataType, Properties...> {
   View& operator=(View&& rhs) {
     m_track = rhs.m_track;
     m_map = rhs.m_map;
-    //m_track = new(USM_HOST_ALLOC(1, track_type)) track_type(std::move(*(rhs.m_track)));
-    //m_map = new(USM_HOST_ALLOC(1, map_type)) map_type(std::move(*(rhs.m_map)));
+    //m_track = new track_type(std::move(*(rhs.m_track)));
+    //m_map = new map_type(std::move(*(rhs.m_map)));
     return *this;
   }
 #endif // SYCL DEVICE ONLY
@@ -1836,8 +1834,8 @@ class View : public ViewTraits<DataType, Properties...> {
   template <class RT, class... RP, class Arg0, class... Args>
   KOKKOS_INLINE_FUNCTION View(const View<RT, RP...>& src_view, const Arg0 arg0,
                               Args... args) {
-    m_track = new(USM_HOST_ALLOC(1, track_type)) track_type(*(src_view.m_track), traits::is_managed);
-    m_map = new(USM_HOST_ALLOC(1, map_type)) map_type();
+    m_track = new track_type(*(src_view.m_track), traits::is_managed);
+    m_map = new map_type();
     typedef View<RT, RP...> SrcType;
 
     typedef Kokkos::Impl::ViewMapping<void /* deduce destination view type from
@@ -1875,8 +1873,13 @@ class View : public ViewTraits<DataType, Properties...> {
       typename std::enable_if<!Impl::ViewCtorProp<P...>::has_pointer,
                               typename traits::array_layout>::type const&
           arg_layout) {
-    m_track = new(USM_HOST_ALLOC(1, track_type)) track_type();
-    m_map = new(USM_HOST_ALLOC(1, map_type)) map_type();
+
+    auto qq = Kokkos::Experimental::SYCL().get_queue();
+    void* ptr;
+    ptr = cl::sycl::malloc_host(sizeof(track_type), *qq);
+    m_track = new(ptr) track_type();
+    ptr = cl::sycl::malloc_host(sizeof(map_type), *qq);
+    m_map = new(ptr) map_type();
     // Append layout and spaces if not input
     typedef Impl::ViewCtorProp<P...> alloc_prop_input;
 
@@ -1960,8 +1963,8 @@ class View : public ViewTraits<DataType, Properties...> {
       typename std::enable_if<Impl::ViewCtorProp<P...>::has_pointer,
                               typename traits::array_layout>::type const&
           arg_layout) {
-    m_track = new(USM_HOST_ALLOC(1, track_type)) track_type();
-    m_map = new(USM_HOST_ALLOC(1, map_type)) map_type(arg_prop, arg_layout);
+    m_track = new track_type();
+    m_map = new map_type(arg_prop, arg_layout);
 
     static_assert(
         std::is_same<pointer_type,
@@ -2114,8 +2117,8 @@ class View : public ViewTraits<DataType, Properties...> {
   KOKKOS_INLINE_FUNCTION View(
       const track_type& track,
       const Kokkos::Impl::ViewMapping<Traits, typename Traits::specialize>& map) {
-    m_track = new(USM_HOST_ALLOC(1, track_type)) track_type(track);
-    m_map = new(USM_HOST_ALLOC(1, map_type)) map_type();
+    m_track = new track_type(track);
+    m_map = new map_type();
     typedef Kokkos::Impl::ViewMapping<traits, Traits,
                                       typename traits::specialize>
         Mapping;
@@ -2271,8 +2274,8 @@ class ViewTest : public ViewTraits<DataType, Properties...> {
   //View() : (*m_track)(), (*m_map)() {}
   KOKKOS_INLINE_FUNCTION
   ViewTest() {
-    m_track = new(USM_HOST_ALLOC(1, track_type)) track_type();
-    m_map = new(USM_HOST_ALLOC(1, map_type)) map_type();
+    m_track = new track_type();
+    m_map = new map_type();
   }
   int get1() const {
     return 1;
