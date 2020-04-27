@@ -34,6 +34,7 @@ public:
   size_type * m_scratchFlags ;
 
   cl::sycl::queue* m_queue;
+  cl::sycl::queue* get_queue(); 
 
   static int was_finalized;
 

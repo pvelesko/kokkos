@@ -495,6 +495,10 @@ void SYCL::fence() const
   //SYCL_SAFE_CALL( syclDeviceSynchronize() );
 }
 
+cl::sycl::queue* SYCL::get_queue() const {
+  return m_space_instance->m_queue;
+};
+
 int SYCL::sycl_device() const { return impl_internal_space_instance()->m_syclDev; }
 const char* SYCL::name() { return "SYCL"; }
 

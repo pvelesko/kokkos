@@ -53,7 +53,7 @@
 #include <Kokkos_HostSpace.hpp>
 #include <Kokkos_MemoryTraits.hpp>
 #include <Kokkos_ExecPolicy.hpp>
-
+#include <Kokkos_SYCL.hpp>
 #if defined(KOKKOS_ENABLE_PROFILING)
 #include <impl/Kokkos_Profiling_Interface.hpp>
 #endif
@@ -1722,10 +1722,7 @@ class View : public ViewTraits<DataType, Properties...> {
   //----------------------------------------
   // Standard destructor, constructors, and assignment operators
 
-#ifndef __SYCL_DEVICE_ONLY__
 
-  KOKKOS_INLINE_FUNCTION
-  ~View() {}
 
 
   //KOKKOS_INLINE_FUNCTION
@@ -1736,13 +1733,19 @@ class View : public ViewTraits<DataType, Properties...> {
     m_map = new map_type();
   }
 
+#ifndef __SYCL_DEVICE_ONLY__
+  KOKKOS_INLINE_FUNCTION
+  ~View() {}
+
   //KOKKOS_INLINE_FUNCTION
   //View(const View& rhs)
   //    : (*m_track)(rhs.(*m_track), traits::is_managed), (*m_map)(rhs.(*m_map)) {}
   KOKKOS_INLINE_FUNCTION
   View(const View& rhs) {
-    m_track = new track_type(*(rhs.m_track), traits::is_managed);
-    m_map = new map_type(*(rhs.m_map));
+    m_track = rhs.m_track;
+    m_map = rhs.m_map;
+    //m_track = new track_type(*(rhs.m_track), traits::is_managed);
+    //m_map = new map_type(*(rhs.m_map));
   }
 
   //KOKKOS_INLINE_FUNCTION
@@ -1750,8 +1753,10 @@ class View : public ViewTraits<DataType, Properties...> {
   //    : (*m_track)(std::move(rhs.(*m_track))), (*m_map)(std::move(rhs.(*m_map))) {}
   KOKKOS_INLINE_FUNCTION
   View(View&& rhs) {
-    m_track = new track_type(std::move(*(rhs.m_track)));
-    m_map = new map_type(std::move(*(rhs.m_map)));
+    m_track = rhs.m_track;
+    m_map = rhs.m_map;
+    //m_track = new track_type(std::move(*(rhs.m_track)));
+    //m_map = new map_type(std::move(*(rhs.m_map)));
   }
 
   //KOKKOS_INLINE_FUNCTION
@@ -1762,8 +1767,10 @@ class View : public ViewTraits<DataType, Properties...> {
   //}
   KOKKOS_INLINE_FUNCTION
   View& operator=(const View& rhs) {
-    m_track = new track_type(*(rhs.m_track));
-    m_map = new map_type(*(rhs.m_map));
+    m_track = rhs.m_track;
+    m_map = rhs.m_map;
+    //m_track = new track_type(*(rhs.m_track));
+    //m_map = new map_type(*(rhs.m_map));
     return *this;
   }
 
@@ -1775,10 +1782,13 @@ class View : public ViewTraits<DataType, Properties...> {
   //}
   KOKKOS_INLINE_FUNCTION
   View& operator=(View&& rhs) {
-    m_track = new track_type(std::move(*(rhs.m_track)));
-    m_map = new map_type(std::move(*(rhs.m_map)));
+    m_track = rhs.m_track;
+    m_map = rhs.m_map;
+    //m_track = new track_type(std::move(*(rhs.m_track)));
+    //m_map = new map_type(std::move(*(rhs.m_map)));
     return *this;
   }
+#endif // SYCL DEVICE ONLY
   //----------------------------------------
   // Compatible view copy constructor and assignment
   // may assign unmanaged from managed.
@@ -1789,8 +1799,8 @@ class View : public ViewTraits<DataType, Properties...> {
       typename std::enable_if<Kokkos::Impl::ViewMapping<
           traits, typename View<RT, RP...>::traits,
           typename traits::specialize>::is_assignable_data_type>::type* = 0) {
-    m_track = new track_type(*(rhs.m_track));
-    m_map = new map_type(*(rhs.m_map));
+    m_track = rhs.m_track;
+    m_map = rhs.m_map;
     typedef typename View<RT, RP...>::traits SrcTraits;
     typedef Kokkos::Impl::ViewMapping<traits, SrcTraits,
                                       typename traits::specialize>
@@ -1844,7 +1854,6 @@ class View : public ViewTraits<DataType, Properties...> {
     Mapping::assign((*m_map), *(src_view.m_map), arg0, args...);
   }
 
-#endif // SYCL DEVICE ONLY
   //----------------------------------------
   // Allocation tracking properties
 
@@ -1864,8 +1873,13 @@ class View : public ViewTraits<DataType, Properties...> {
       typename std::enable_if<!Impl::ViewCtorProp<P...>::has_pointer,
                               typename traits::array_layout>::type const&
           arg_layout) {
-    m_track = new track_type();
-    m_map = new map_type();
+
+    auto qq = Kokkos::Experimental::SYCL().get_queue();
+    void* ptr;
+    ptr = cl::sycl::malloc_host(sizeof(track_type), *qq);
+    m_track = new(ptr) track_type();
+    ptr = cl::sycl::malloc_host(sizeof(map_type), *qq);
+    m_map = new(ptr) map_type();
     // Append layout and spaces if not input
     typedef Impl::ViewCtorProp<P...> alloc_prop_input;
 
@@ -1890,7 +1904,7 @@ class View : public ViewTraits<DataType, Properties...> {
                   "View allocation constructor requires managed memory");
 
     if (alloc_prop::initialize &&
-#ifdef KOKKOS_ENABLE_DEPRECATED_CODE
+#ifndef KOKKOS_ENABLE_DEPRECATED_CODE
         !alloc_prop::execution_space::is_initialized()
 #else
         !alloc_prop::execution_space::impl_is_initialized()

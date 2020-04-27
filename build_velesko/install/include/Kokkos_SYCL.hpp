@@ -124,6 +124,8 @@ public:
   static void impl_static_fence() ;
   void fence() const;
 
+  cl::sycl::queue* get_queue() const;
+
 
   /// \brief Print configuration information to the given output stream.
   static void print_configuration( std::ostream & , const bool detail = false );
