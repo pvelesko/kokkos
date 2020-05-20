@@ -58,6 +58,10 @@
 #include <impl/Kokkos_Profiling_Interface.hpp>
 #endif
 
+// NLIBER
+#include "pretty_name.h"
+#include <iostream>
+
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
@@ -1719,11 +1723,52 @@ class View : public ViewTraits<DataType, Properties...> {
   //----------------------------------------
   // Standard destructor, constructors, and assignment operators
 
-  KOKKOS_INLINE_FUNCTION
-  ~View() {}
+  template <typename T>
+  KOKKOS_INLINE_FUNCTION static void check_is_trivially_copyable() {
+    static_assert(std::is_copy_constructible<T>::value +
+                      std::is_move_constructible<T>::value +
+                      std::is_copy_assignable<T>::value +
+                      std::is_move_assignable<T>::value,
+                  "T copy/move constructors/assignments deleted");
+
+    static_assert(std::is_trivially_copy_constructible<T>::value ||
+                      !std::is_copy_constructible<T>::value,
+                  "T not trivially copy constructible");
+
+    static_assert(std::is_trivially_move_constructible<T>::value ||
+                      !std::is_move_constructible<T>::value,
+                  "T not trivially move constructible");
+
+    static_assert(std::is_trivially_copy_assignable<T>::value ||
+                      !std::is_copy_assignable<T>::value,
+                  "T not trivially copy assignable");
+
+    static_assert(std::is_trivially_move_assignable<T>::value ||
+                      !std::is_move_assignable<T>::value,
+                  "T not trivially move assignable");
+
+    static_assert(std::is_trivially_destructible<T>::value,
+                  "T not trivially destructible");
+
+    static_assert(std::is_trivially_copyable<T>::value,
+                  "T not trivially copyable");
+  }
 
   KOKKOS_INLINE_FUNCTION
-  View() : m_track(), m_map() {}
+  static void check_is_trivially_copyable_on_sycl_device() {
+#ifdef __SYCL_DEVICE_ONLY__
+    check_is_trivially_copyable<track_type>();
+    check_is_trivially_copyable<map_type>();
+#endif  // __SYCL_DEVICE_ONLY__
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  View() : m_track(), m_map() { check_is_trivially_copyable_on_sycl_device(); }
+
+#ifndef __SYCL_DEVICE_ONLY__
+
+  KOKKOS_INLINE_FUNCTION
+  ~View() {}
 
   KOKKOS_INLINE_FUNCTION
   View(const View& rhs)
@@ -1745,6 +1790,15 @@ class View : public ViewTraits<DataType, Properties...> {
     m_track = std::move(rhs.m_track);
     m_map   = std::move(rhs.m_map);
     return *this;
+  }
+
+#endif  // !__SYCL_DEVICE_ONLY__
+
+  void nliber_debug() const {
+    std::cout << "*this: " << cool::pretty_name(*this) << '\n';
+    std::cout << "m_track: " << cool::pretty_name(m_track) << '\n';
+    std::cout << "m_map: " << cool::pretty_name(m_map) << '\n';
+    m_map.nliber_debug();
   }
 
   //----------------------------------------
@@ -1857,7 +1911,7 @@ class View : public ViewTraits<DataType, Properties...> {
 #ifdef KOKKOS_ENABLE_DEPRECATED_CODE
         !alloc_prop::execution_space::is_initialized()
 #else
-        !alloc_prop::execution_space::impl_is_initialized()
+      !alloc_prop::execution_space::impl_is_initialized()
 #endif
     ) {
       // If initializing view data then
@@ -1946,10 +2000,10 @@ class View : public ViewTraits<DataType, Properties...> {
         std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
         arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7, label());
 #else
-    Impl::runtime_check_rank_device(
-        traits::rank_dynamic,
-        std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
-        arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
+  Impl::runtime_check_rank_device(
+      traits::rank_dynamic,
+      std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
+      arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
 
 #endif
   }
@@ -1976,10 +2030,10 @@ class View : public ViewTraits<DataType, Properties...> {
         std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
         arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7, label());
 #else
-    Impl::runtime_check_rank_device(
-        traits::rank_dynamic,
-        std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
-        arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
+  Impl::runtime_check_rank_device(
+      traits::rank_dynamic,
+      std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
+      arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
 
 #endif
   }
@@ -2020,10 +2074,10 @@ class View : public ViewTraits<DataType, Properties...> {
         std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
         arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7, label());
 #else
-    Impl::runtime_check_rank_device(
-        traits::rank_dynamic,
-        std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
-        arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
+  Impl::runtime_check_rank_device(
+      traits::rank_dynamic,
+      std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
+      arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
 
 #endif
   }
@@ -2056,10 +2110,10 @@ class View : public ViewTraits<DataType, Properties...> {
         std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
         arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7, label());
 #else
-    Impl::runtime_check_rank_device(
-        traits::rank_dynamic,
-        std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
-        arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
+  Impl::runtime_check_rank_device(
+      traits::rank_dynamic,
+      std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
+      arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
 
 #endif
   }
@@ -2104,10 +2158,10 @@ class View : public ViewTraits<DataType, Properties...> {
         std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
         arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7, label());
 #else
-    Impl::runtime_check_rank_device(
-        traits::rank_dynamic,
-        std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
-        arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
+  Impl::runtime_check_rank_device(
+      traits::rank_dynamic,
+      std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
+      arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
 
 #endif
   }
@@ -2184,10 +2238,10 @@ class View : public ViewTraits<DataType, Properties...> {
         std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
         arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7, label());
 #else
-    Impl::runtime_check_rank_device(
-        traits::rank_dynamic,
-        std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
-        arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
+  Impl::runtime_check_rank_device(
+      traits::rank_dynamic,
+      std::is_same<typename traits::specialize, void>::value, arg_N0, arg_N1,
+      arg_N2, arg_N3, arg_N4, arg_N5, arg_N6, arg_N7);
 
 #endif
   }

@@ -346,12 +346,13 @@ union SharedAllocationTracker {
     m_record_bits = DO_NOT_DEREF_FLAG;
   }
 
+  KOKKOS_FORCEINLINE_FUNCTION constexpr SharedAllocationTracker()
+      : m_record_bits(DO_NOT_DEREF_FLAG) {}
+
+#ifndef __SYCL_DEVICE_ONLY__
   // Copy:
   KOKKOS_FORCEINLINE_FUNCTION
   ~SharedAllocationTracker(){KOKKOS_IMPL_SHARED_ALLOCATION_TRACKER_DECREMENT}
-
-  KOKKOS_FORCEINLINE_FUNCTION constexpr SharedAllocationTracker()
-      : m_record_bits(DO_NOT_DEREF_FLAG) {}
 
   // Move:
 
@@ -392,6 +393,7 @@ union SharedAllocationTracker {
     KOKKOS_IMPL_SHARED_ALLOCATION_TRACKER_INCREMENT
     return *this;
   }
+#endif // !__SYCL_DEVICE_ONLY
 
   /** \brief  Copy assignment may disable tracking */
   KOKKOS_FORCEINLINE_FUNCTION
@@ -406,6 +408,9 @@ union SharedAllocationTracker {
 #undef KOKKOS_IMPL_SHARED_ALLOCATION_TRACKER_INCREMENT
 #undef KOKKOS_IMPL_SHARED_ALLOCATION_TRACKER_DECREMENT
 };
+#ifdef __SYCL_DEVICE_ONLY__
+static_assert(std::is_trivially_copyable<SharedAllocationTracker>::value, "SharedAllocationTracker not trivially copyable on SYCL device.");
+#endif // __SYCL_DEVICE_ONLY__
 
 } /* namespace Impl */
 } /* namespace Kokkos */

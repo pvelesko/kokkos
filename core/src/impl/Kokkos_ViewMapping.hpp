@@ -93,6 +93,7 @@ struct rank_dynamic<Val, Args...> {
   enum { value = (Val == 0 ? 1 : 0) + rank_dynamic<Args...>::value };
 };
 
+#if 0
 #define KOKKOS_IMPL_VIEW_DIMENSION(R)                                       \
   template <size_t V, unsigned>                                             \
   struct ViewDimension##R {                                                 \
@@ -112,6 +113,23 @@ struct rank_dynamic<Val, Args...> {
     ViewDimension##R& operator=(const ViewDimension##R&) = default;         \
     KOKKOS_INLINE_FUNCTION explicit ViewDimension##R(size_t V) : N##R(V) {} \
   };
+#else
+#define KOKKOS_IMPL_VIEW_DIMENSION(R)                                       \
+  template <size_t V, unsigned>                                             \
+  struct ViewDimension##R {                                                 \
+    enum { ArgN##R = (V != KOKKOS_INVALID_INDEX ? V : 1) };                 \
+    enum { N##R = (V != KOKKOS_INVALID_INDEX ? V : 1) };                    \
+    KOKKOS_INLINE_FUNCTION explicit ViewDimension##R(size_t) {}             \
+    ViewDimension##R()                        = default;                    \
+  };                                                                        \
+  template <unsigned RD>                                                    \
+  struct ViewDimension##R<0, RD> {                                          \
+    enum { ArgN##R = 0 };                                                   \
+    typename std::conditional<(RD < 3), size_t, unsigned>::type N##R;       \
+    ViewDimension##R()                        = default;                    \
+    KOKKOS_INLINE_FUNCTION explicit ViewDimension##R(size_t V) : N##R(V) {} \
+  };
+#endif
 
 KOKKOS_IMPL_VIEW_DIMENSION(0)
 KOKKOS_IMPL_VIEW_DIMENSION(1)
@@ -188,8 +206,10 @@ struct ViewDimension : public ViewDimension0<variadic_size_t<0, Vals...>::value,
   enum { rank_dynamic = Impl::rank_dynamic<Vals...>::value };
 
   ViewDimension()                     = default;
+#ifndef __SYCL_DEVICE_ONLY__
   ViewDimension(const ViewDimension&) = default;
   ViewDimension& operator=(const ViewDimension&) = default;
+#endif
 
   KOKKOS_INLINE_FUNCTION
   constexpr ViewDimension(size_t n0, size_t n1, size_t n2, size_t n3, size_t n4,
@@ -1075,9 +1095,11 @@ struct ViewOffset<
 
   //----------------------------------------
 
-  ViewOffset()                  = default;
+  ViewOffset() = default;
+#ifndef __SYCL_DEVICE_ONLY__
   ViewOffset(const ViewOffset&) = default;
   ViewOffset& operator=(const ViewOffset&) = default;
+#endif
 
   template <unsigned TrivialScalarSize>
   KOKKOS_INLINE_FUNCTION constexpr ViewOffset(
@@ -1380,9 +1402,11 @@ struct ViewOffset<
   };
 
  public:
-  ViewOffset()                  = default;
+  ViewOffset() = default;
+#ifndef __SYCL_DEVICE_ONLY__
   ViewOffset(const ViewOffset&) = default;
   ViewOffset& operator=(const ViewOffset&) = default;
+#endif
 
   /* Enable padding for trivial scalar types with non-zero trivial scalar size
    */
@@ -1681,9 +1705,11 @@ struct ViewOffset<
 
   //----------------------------------------
 
-  ViewOffset()                  = default;
+  ViewOffset() = default;
+#ifndef __SYCL_DEVICE_ONLY__
   ViewOffset(const ViewOffset&) = default;
   ViewOffset& operator=(const ViewOffset&) = default;
+#endif
 
   template <unsigned TrivialScalarSize>
   KOKKOS_INLINE_FUNCTION constexpr ViewOffset(
@@ -1981,9 +2007,11 @@ struct ViewOffset<
   };
 
  public:
-  ViewOffset()                  = default;
+  ViewOffset() = default;
+#ifndef __SYCL_DEVICE_ONLY__
   ViewOffset(const ViewOffset&) = default;
   ViewOffset& operator=(const ViewOffset&) = default;
+#endif
 
   /* Enable padding for trivial scalar types with non-zero trivial scalar size.
    */
@@ -2465,9 +2493,11 @@ struct ViewOffset<Dimension, Kokkos::LayoutStride, void> {
 
   //----------------------------------------
 
-  ViewOffset()                  = default;
+  ViewOffset() = default;
+#ifndef __SYCL_DEVICE_ONLY__
   ViewOffset(const ViewOffset&) = default;
   ViewOffset& operator=(const ViewOffset&) = default;
+#endif
 
   KOKKOS_INLINE_FUNCTION
   constexpr ViewOffset(std::integral_constant<unsigned, 0> const&,
@@ -2865,9 +2895,61 @@ class ViewMapping<
   template <class, class...>
   friend class ViewMapping;
 
+    template <typename T>
+  KOKKOS_INLINE_FUNCTION static void check_is_trivially_copyable() {
+    static_assert(std::is_copy_constructible<T>::value +
+                      std::is_move_constructible<T>::value +
+                      std::is_copy_assignable<T>::value +
+                      std::is_move_assignable<T>::value,
+                  "T copy/move constructors/assignments deleted");
+
+    static_assert(std::is_trivially_copy_constructible<T>::value ||
+                      !std::is_copy_constructible<T>::value,
+                  "T not trivially copy constructible");
+
+    static_assert(std::is_trivially_move_constructible<T>::value ||
+                      !std::is_move_constructible<T>::value,
+                  "T not trivially move constructible");
+
+    static_assert(std::is_trivially_copy_assignable<T>::value ||
+                      !std::is_copy_assignable<T>::value,
+                  "T not trivially copy assignable");
+
+    static_assert(std::is_trivially_move_assignable<T>::value ||
+                      !std::is_move_assignable<T>::value,
+                  "T not trivially move assignable");
+
+    static_assert(std::is_trivially_destructible<T>::value,
+                  "T not trivially destructible");
+
+    static_assert(std::is_trivially_copyable<T>::value,
+                  "T not trivially copyable");
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void check_is_trivially_copyable_on_sycl_device() const {
+#ifdef __SYCL_DEVICE_ONLY__
+        check_is_trivially_copyable<handle_type>();
+        check_is_trivially_copyable<offset_type>();
+#endif
+  }
+
+ public:
+  KOKKOS_INLINE_FUNCTION
+  void nliber_debug() const {
+    std::cout << "*this: " << cool::pretty_name(*this) << '\n';
+    std::cout << "this->m_impl_handle: " << cool::pretty_name(m_impl_handle)
+              << '\n';
+    std::cout << "this->m_impl_offset: " << cool::pretty_name(m_impl_offset)
+              << '\n';
+  }
+
+ private:
   KOKKOS_INLINE_FUNCTION
   ViewMapping(const handle_type& arg_handle, const offset_type& arg_offset)
-      : m_impl_handle(arg_handle), m_impl_offset(arg_offset) {}
+      : m_impl_handle(arg_handle), m_impl_offset(arg_offset) {
+    check_is_trivially_copyable_on_sycl_device();
+  }
 
  public:
   typedef void printable_label_typedef;
@@ -3068,8 +3150,18 @@ class ViewMapping<
 
   //----------------------------------------
 
+  KOKKOS_INLINE_FUNCTION ViewMapping() : m_impl_handle(), m_impl_offset() {
+    check_is_trivially_copyable_on_sycl_device();
+  }
+
+#ifdef __SYCL_DEVICE_ONLY
+  static_assert(std::is_trivially_copyable<decltype(m_impl_handle)>::value,
+                "m_impl_handle not trivially copyable on SYCL device.");
+  static_assert(std::is_trivially_copyable<decltype(m_impl_offset)>::value,
+                "m_impl_offset not trivially copyable on SYCL device.");
+#else   // !__SYCL_DEVICE_ONLY__
+#ifdef NLIBER
   KOKKOS_INLINE_FUNCTION ~ViewMapping() {}
-  KOKKOS_INLINE_FUNCTION ViewMapping() : m_impl_handle(), m_impl_offset() {}
   KOKKOS_INLINE_FUNCTION ViewMapping(const ViewMapping& rhs)
       : m_impl_handle(rhs.m_impl_handle), m_impl_offset(rhs.m_impl_offset) {}
   KOKKOS_INLINE_FUNCTION ViewMapping& operator=(const ViewMapping& rhs) {
@@ -3085,6 +3177,15 @@ class ViewMapping<
     m_impl_offset = rhs.m_impl_offset;
     return *this;
   }
+#else
+  KOKKOS_INLINE_FUNCTION ~ViewMapping() = default;
+  KOKKOS_INLINE_FUNCTION ViewMapping(const ViewMapping& rhs) = default;
+  KOKKOS_INLINE_FUNCTION ViewMapping(ViewMapping&& rhs) = default;
+  KOKKOS_INLINE_FUNCTION ViewMapping& operator=(ViewMapping&& rhs) = default;
+  KOKKOS_INLINE_FUNCTION ViewMapping& operator=(const ViewMapping& rhs) = default;
+#endif
+
+#endif  // !__SYCL_DEVICE_ONLY
 
   //----------------------------------------
 
@@ -3106,7 +3207,7 @@ class ViewMapping<
       : m_impl_handle(
             ((Kokkos::Impl::ViewCtorProp<void, pointer_type> const&)arg_prop)
                 .value),
-        m_impl_offset(std::integral_constant<unsigned, 0>(), arg_layout) {}
+        m_impl_offset(std::integral_constant<unsigned, 0>(), arg_layout) { check_is_trivially_copyable_on_sycl_device(); }
 
   /**\brief  Assign data */
   KOKKOS_INLINE_FUNCTION
