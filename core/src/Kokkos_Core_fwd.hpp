@@ -139,7 +139,9 @@ class ROCm;       ///< Execution space for ROCm GPU
 
 #if defined( KOKKOS_ENABLE_SYCL )
 namespace Experimental {
-class SYCLSpace ;            ///< Memory space on SYCL GPU
+class SYCLHostUSMSpace ;            ///< Memory space on SYCL CPU as device
+class SYCLDeviceUSMSpace ;          ///< Memory space on SYCL GPU as device
+class SYCLSharedUSMSpace ;          ///< Memory space shared USM
 class SYCL ;                 ///< Execution space for SYCL GPU
 }
 #endif
@@ -218,9 +220,11 @@ namespace Impl {
 
 #if defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_CUDA) && \
     defined(KOKKOS_ENABLE_CUDA)
-#elif defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_SYCL_GPU)
-typedef Kokkos::Experimental::SYCLSpace  ActiveExecutionMemorySpace ;
 typedef Kokkos::CudaSpace ActiveExecutionMemorySpace;
+#elif defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_SYCL_CPU)
+typedef Kokkos::Experimental::SYCLHostUSMSpace  ActiveExecutionMemorySpace ;
+#elif defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_SYCL_GPU)
+typedef Kokkos::Experimental::SYCLDeviceUSMSpace  ActiveExecutionMemorySpace ;
 #elif defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_ROCM_GPU)
 typedef Kokkos::HostSpace ActiveExecutionMemorySpace;
 #elif defined(KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST)

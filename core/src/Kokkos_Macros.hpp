@@ -552,7 +552,10 @@ define KOKKOS_FORCEINLINE_FUNCTION inline
     defined(KOKKOS_ENABLE_ROCM)
 #define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_ROCM_GPU
 #elif defined(KOKKOS_ENABLE_SYCL)
+#define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_SYCL_CPU
+#ifndef __SYCL_DEVICE_ONLY__
 #define KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST
+#endif
 #endif
 
 //----------------------------------------------------------------------------

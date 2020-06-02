@@ -58,10 +58,6 @@
 #include <impl/Kokkos_Profiling_Interface.hpp>
 #endif
 
-// NLIBER
-#include "pretty_name.h"
-#include <iostream>
-
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
@@ -1793,13 +1789,6 @@ class View : public ViewTraits<DataType, Properties...> {
   }
 
 #endif  // !__SYCL_DEVICE_ONLY__
-
-  void nliber_debug() const {
-    std::cout << "*this: " << cool::pretty_name(*this) << '\n';
-    std::cout << "m_track: " << cool::pretty_name(m_track) << '\n';
-    std::cout << "m_map: " << cool::pretty_name(m_map) << '\n';
-    m_map.nliber_debug();
-  }
 
   //----------------------------------------
   // Compatible view copy constructor and assignment

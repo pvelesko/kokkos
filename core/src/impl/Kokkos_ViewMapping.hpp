@@ -2934,16 +2934,6 @@ class ViewMapping<
 #endif
   }
 
- public:
-  KOKKOS_INLINE_FUNCTION
-  void nliber_debug() const {
-    std::cout << "*this: " << cool::pretty_name(*this) << '\n';
-    std::cout << "this->m_impl_handle: " << cool::pretty_name(m_impl_handle)
-              << '\n';
-    std::cout << "this->m_impl_offset: " << cool::pretty_name(m_impl_offset)
-              << '\n';
-  }
-
  private:
   KOKKOS_INLINE_FUNCTION
   ViewMapping(const handle_type& arg_handle, const offset_type& arg_offset)
