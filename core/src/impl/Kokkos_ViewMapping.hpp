@@ -3150,31 +3150,11 @@ class ViewMapping<
   static_assert(std::is_trivially_copyable<decltype(m_impl_offset)>::value,
                 "m_impl_offset not trivially copyable on SYCL device.");
 #else   // !__SYCL_DEVICE_ONLY__
-#ifdef NLIBER
-  KOKKOS_INLINE_FUNCTION ~ViewMapping() {}
-  KOKKOS_INLINE_FUNCTION ViewMapping(const ViewMapping& rhs)
-      : m_impl_handle(rhs.m_impl_handle), m_impl_offset(rhs.m_impl_offset) {}
-  KOKKOS_INLINE_FUNCTION ViewMapping& operator=(const ViewMapping& rhs) {
-    m_impl_handle = rhs.m_impl_handle;
-    m_impl_offset = rhs.m_impl_offset;
-    return *this;
-  }
-
-  KOKKOS_INLINE_FUNCTION ViewMapping(ViewMapping&& rhs)
-      : m_impl_handle(rhs.m_impl_handle), m_impl_offset(rhs.m_impl_offset) {}
-  KOKKOS_INLINE_FUNCTION ViewMapping& operator=(ViewMapping&& rhs) {
-    m_impl_handle = rhs.m_impl_handle;
-    m_impl_offset = rhs.m_impl_offset;
-    return *this;
-  }
-#else
   KOKKOS_INLINE_FUNCTION ~ViewMapping() = default;
   KOKKOS_INLINE_FUNCTION ViewMapping(const ViewMapping& rhs) = default;
   KOKKOS_INLINE_FUNCTION ViewMapping(ViewMapping&& rhs) = default;
   KOKKOS_INLINE_FUNCTION ViewMapping& operator=(ViewMapping&& rhs) = default;
   KOKKOS_INLINE_FUNCTION ViewMapping& operator=(const ViewMapping& rhs) = default;
-#endif
-
 #endif  // !__SYCL_DEVICE_ONLY
 
   //----------------------------------------
