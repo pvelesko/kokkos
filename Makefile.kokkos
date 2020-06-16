@@ -1,6 +1,6 @@
 # Default settings common options.
 
-# Options: Cuda,ROCm,SyCL,OpenMP,Pthread,Qthreads,Serial
+# Options: Cuda,ROCm,SYCL,OpenMP,Pthread,Qthreads,Serial
 #KOKKOS_DEVICES ?= "OpenMP"
 KOKKOS_DEVICES ?= "Pthread"
 # Options: 
@@ -91,7 +91,7 @@ endif
 
 # Check for other Execution Spaces.
 KOKKOS_INTERNAL_USE_CUDA := $(call kokkos_has_string,$(KOKKOS_DEVICES),Cuda)
-KOKKOS_INTERNAL_USE_SYCL := $(call kokkos_has_string,$(KOKKOS_DEVICES),SyCL)
+KOKKOS_INTERNAL_USE_SYCL := $(call kokkos_has_string,$(KOKKOS_DEVICES),SYCL)
 KOKKOS_INTERNAL_USE_ROCM := $(call kokkos_has_string,$(KOKKOS_DEVICES),ROCm)
 KOKKOS_INTERNAL_USE_OPENMPTARGET := $(call kokkos_has_string,$(KOKKOS_DEVICES),OpenMPTarget)
 
