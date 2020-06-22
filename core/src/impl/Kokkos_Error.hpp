@@ -83,11 +83,15 @@ std::string human_memory_size(size_t arg_bytes);
 namespace Kokkos {
 KOKKOS_INLINE_FUNCTION
 void abort(const char* const message) {
+#if defined(KOKKOS_ENABLE_SYCL) && !defined(__SYCL_DEVICE_ONLY__)
+  Kokkos::Impl::host_abort(message);
+#else
 #if defined(KOKKOS_ENABLE_CUDA) && defined(__CUDA_ARCH__)
   Kokkos::Impl::cuda_abort(message);
 #else
 #if !defined(KOKKOS_ENABLE_OPENMPTARGET) && !defined(__HCC_ACCELERATOR__) && !defined(KOKKOS_ENABLE_SYCL)
   Kokkos::Impl::host_abort(message);
+#endif
 #endif
 #endif
 }
