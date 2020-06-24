@@ -92,10 +92,10 @@ void initialize_internal(const InitArguments& args) {
 #if defined(KOKKOS_ENABLE_THREADS) || defined(KOKKOS_ENABLE_OPENMPTARGET)
   const int use_numa = args.num_numa;
 #endif
-#if defined( KOKKOS_ENABLE_CUDA ) || defined( KOKKOS_ENABLE_ROCM ) || \
-  defined( KOKKOS_ENABLE_SYCL)
-  int use_gpu          = args.device_id;
-  const int ndevices   = args.ndevices;
+#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_ROCM) || \
+    defined(KOKKOS_ENABLE_SYCL)
+  int use_gpu           = args.device_id;
+  const int ndevices    = args.ndevices;
   const int skip_device = args.skip_device;
   // if the exact device is not set, but ndevices was given, assign round-robin
   // using on-node MPI rank
@@ -253,14 +253,18 @@ void initialize_internal(const InitArguments& args) {
   }
 #endif
 
-#if defined( KOKKOS_ENABLE_SYCL )
-  if( std::is_same< Kokkos::Experimental::SYCL , Kokkos::DefaultExecutionSpace >::value || 0 < use_gpu ) {
-    if (use_gpu > -1) {
-      Kokkos::Experimental::SYCL::impl_initialize( Kokkos::Experimental::SYCL::SelectDevice( use_gpu ));
-    }
-    else {
-      Kokkos::Experimental::SYCL::impl_initialize();
-    }
+#if defined(KOKKOS_ENABLE_SYCL)
+  if (std::is_same<Kokkos::Experimental::SYCL,
+                   Kokkos::DefaultExecutionSpace>::value ||
+      0 < use_gpu) {
+    if (use_gpu > -1)
+      Kokkos::Experimental::SYCL::impl_initialize(
+          Kokkos::Experimental::SYCL::SelectDevice2(cl::sycl::gpu_selector()));
+    else
+      Kokkos::Experimental::SYCL::impl_initialize(
+          // Kokkos::Experimental::SYCL::SelectDevice2(cl::sycl::cpu_selector()));
+          Kokkos::Experimental::SYCL::SelectDevice2(
+              [](const cl::sycl::device& d) { return d.is_host(); }));
   }
 #endif
 
@@ -325,8 +329,10 @@ void finalize_internal(const bool all_spaces = false) {
 #endif
 
 #if defined(KOKKOS_ENABLE_SYCL)
-  if( std::is_same< Kokkos::Experimental::SYCL , Kokkos::DefaultExecutionSpace >::value || all_spaces ) {
-    if(Kokkos::Experimental::SYCL::impl_is_initialized())
+  if (std::is_same<Kokkos::Experimental::SYCL,
+                   Kokkos::DefaultExecutionSpace>::value ||
+      all_spaces) {
+    if (Kokkos::Experimental::SYCL::impl_is_initialized())
       Kokkos::Experimental::SYCL::impl_finalize();
   }
 #endif
@@ -403,7 +409,8 @@ void fence_internal() {
 #endif
 
 #if defined(KOKKOS_ENABLE_SYCL)
-  if(std::is_same< Kokkos::Experimental::SYCL, Kokkos::DefaultExecutionSpace >::value ) {
+  if (std::is_same<Kokkos::Experimental::SYCL,
+                   Kokkos::DefaultExecutionSpace>::value) {
     Kokkos::Experimental::SYCL().fence();
   }
 #endif
@@ -887,18 +894,18 @@ void print_configuration(std::ostream& out, const bool detail) {
 #else
   msg << "no" << std::endl;
 #endif
-    msg << "  KOKKOS_ENABLE_SERIAL: ";
-  #ifdef KOKKOS_ENABLE_SERIAL
-    msg << "yes" << std::endl;
-  #else
-    msg << "no" << std::endl;
-  #endif
-      msg << "  KOKKOS_ENABLE_SYCL: ";
-    #ifdef KOKKOS_ENABLE_SYCL
-      msg << "yes" << std::endl;
-    #else
-      msg << "no" << std::endl;
-    #endif
+  msg << "  KOKKOS_ENABLE_SERIAL: ";
+#ifdef KOKKOS_ENABLE_SERIAL
+  msg << "yes" << std::endl;
+#else
+  msg << "no" << std::endl;
+#endif
+  msg << "  KOKKOS_ENABLE_SYCL: ";
+#ifdef KOKKOS_ENABLE_SYCL
+  msg << "yes" << std::endl;
+#else
+  msg << "no" << std::endl;
+#endif
 
   msg << "Default Device:" << std::endl;
   msg << "  KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_CUDA: ";
@@ -925,18 +932,18 @@ void print_configuration(std::ostream& out, const bool detail) {
 #else
   msg << "no" << std::endl;
 #endif
-    msg << "  KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL: ";
-  #ifdef KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL
-    msg << "yes" << std::endl;
-  #else
-    msg << "no" << std::endl;
-  #endif
-      msg << "  KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SYCL: ";
-    #ifdef KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SYCL
-      msg << "yes" << std::endl;
-    #else
-      msg << "no" << std::endl;
-    #endif
+  msg << "  KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL: ";
+#ifdef KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SERIAL
+  msg << "yes" << std::endl;
+#else
+  msg << "no" << std::endl;
+#endif
+  msg << "  KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SYCL: ";
+#ifdef KOKKOS_ENABLE_DEFAULT_DEVICE_TYPE_SYCL
+  msg << "yes" << std::endl;
+#else
+  msg << "no" << std::endl;
+#endif
 
   msg << "Atomics:" << std::endl;
   msg << "  KOKKOS_ENABLE_CUDA_ATOMICS: ";
