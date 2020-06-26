@@ -259,11 +259,10 @@ void initialize_internal(const InitArguments& args) {
       0 < use_gpu) {
     if (use_gpu > -1)
       Kokkos::Experimental::SYCL::impl_initialize(
-          Kokkos::Experimental::SYCL::SelectDevice2(cl::sycl::gpu_selector()));
+          Kokkos::Experimental::SYCL::SYCLDevice(cl::sycl::gpu_selector()));
     else
       Kokkos::Experimental::SYCL::impl_initialize(
-          // Kokkos::Experimental::SYCL::SelectDevice2(cl::sycl::cpu_selector()));
-          Kokkos::Experimental::SYCL::SelectDevice2(
+          Kokkos::Experimental::SYCL::SYCLDevice(
               [](const cl::sycl::device& d) { return d.is_host(); }));
   }
 #endif
