@@ -262,8 +262,7 @@ void initialize_internal(const InitArguments& args) {
           Kokkos::Experimental::SYCL::SYCLDevice(cl::sycl::gpu_selector()));
     else
       Kokkos::Experimental::SYCL::impl_initialize(
-          Kokkos::Experimental::SYCL::SYCLDevice(
-              [](const cl::sycl::device& d) { return d.is_host(); }));
+          Kokkos::Experimental::SYCL::SYCLDevice(cl::sycl::cpu_selector()));
   }
 #endif
 
