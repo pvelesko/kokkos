@@ -121,17 +121,31 @@ class SharedAllocationRecord<void, void> {
  public:
   virtual std::string get_label() const { return std::string("Unmanaged"); }
 
-  static int tracking_enabled() { return t_tracking_enabled; }
+  static int tracking_enabled() { 
+#ifndef __SYCL_DEVICE_ONLY__
+    return t_tracking_enabled; 
+#else 
+    return 0;
+#endif
+  }
 
   /**\brief A host process thread claims and disables the
    *        shared allocation tracking flag.
    */
-  static void tracking_disable() { t_tracking_enabled = 0; }
+  static void tracking_disable() { 
+#ifndef __SYCL_DEVICE_ONLY__
+    t_tracking_enabled = 0;
+#endif
+  };
 
   /**\brief A host process thread releases and enables the
    *        shared allocation tracking flag.
    */
-  static void tracking_enable() { t_tracking_enabled = 1; }
+  static void tracking_enable() {
+#ifndef __SYCL_DEVICE_ONLY__
+    t_tracking_enabled = 1;
+#endif
+  };
 
   virtual ~SharedAllocationRecord() {}
 
