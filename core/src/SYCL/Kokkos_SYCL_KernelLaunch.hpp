@@ -17,10 +17,12 @@ void sycl_launch(const Driver driver) {
 //#endif
        driver.m_policy.space().impl_internal_space_instance()->m_queue->wait();
        driver.m_policy.space().impl_internal_space_instance()->m_queue->submit([&] (cl::sycl::handler& cgh) {
+         auto exec_range = driver.m_policy.end()-driver.m_policy.begin();
+         auto m_functor = driver.m_functor;
          cgh.parallel_for (
-            cl::sycl::range<1>(driver.m_policy.end()-driver.m_policy.begin()), [=] (cl::sycl::item<1> item) {
+            cl::sycl::range<1>(exec_range), [=] (cl::sycl::item<1> item) {
               int id = item.get_linear_id();
-                driver.m_functor(id);        
+                m_functor(id);        
          });
       });
       driver.m_policy.space().impl_internal_space_instance()->m_queue->wait();
