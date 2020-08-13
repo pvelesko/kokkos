@@ -363,7 +363,7 @@ class SharedAllocationTracker {
   }
 
   KOKKOS_FORCEINLINE_FUNCTION constexpr SharedAllocationTracker()
-      : m_record_bits(DO_NOT_DEREF_FLAG) {}
+      : m_record_bits(DO_NOT_DEREF_FLAG), m_record() {}
 
 #ifndef __SYCL_DEVICE_ONLY__
   // Copy:
