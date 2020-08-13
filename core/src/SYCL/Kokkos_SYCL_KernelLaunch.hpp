@@ -12,9 +12,6 @@ namespace Impl {
 // Range Launch
 template<class Driver>
 void sycl_launch(const Driver driver) {
-//#ifndef __SYCL_DEVICE_ONLY__
-  isTriviallyCopyable<decltype(driver.m_functor)>();
-//#endif
        driver.m_policy.space().impl_internal_space_instance()->m_queue->wait();
        driver.m_policy.space().impl_internal_space_instance()->m_queue->submit([&] (cl::sycl::handler& cgh) {
          auto exec_range = driver.m_policy.end()-driver.m_policy.begin();
