@@ -23,5 +23,5 @@
                 #__VA_ARGS__ "not trivially move assignable");\
   static_assert(std::is_trivially_destructible<__VA_ARGS__>::value,\
                 #__VA_ARGS__ "not trivially destructible");
-}
-#endif
+
+#endif // KOKKOS_TYPECHECKS_HPP
