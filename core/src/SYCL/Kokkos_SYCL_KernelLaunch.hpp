@@ -1,6 +1,7 @@
 #ifndef KOKKOS_SYCL_KERNELLAUNCH_HPP_
 #define KOKKOS_SYCL_KERNELLAUNCH_HPP_
 
+#include <SYCL/Kokkos_TypeChecks.hpp>
 #include <SYCL/Kokkos_SYCL_Error.hpp>
 #include <CL/sycl.hpp>
 

@@ -46,6 +46,8 @@
 
 #include <cstdint>
 #include <string>
+#include "SYCL/Kokkos_TypeChecks.hpp"
+
 
 namespace Kokkos {
 namespace Impl {
@@ -253,7 +255,7 @@ template <class MemorySpace>
 class SharedAllocationRecord<MemorySpace, void>
     : public SharedAllocationRecord<void, void> {};
 
-union SharedAllocationTracker {
+class SharedAllocationTracker {
  private:
   typedef SharedAllocationRecord<void, void> Record;
 
@@ -413,8 +415,7 @@ union SharedAllocationTracker {
 #undef KOKKOS_IMPL_SHARED_ALLOCATION_TRACKER_DECREMENT
 };
 #ifdef __SYCL_DEVICE_ONLY__
-static_assert(std::is_trivially_copyable<SharedAllocationTracker>::value,
-              "SharedAllocationTracker not trivially copyable on SYCL device.");
+isTriviallyCopyable(SharedAllocationTracker);
 #endif  // __SYCL_DEVICE_ONLY__
 
 } /* namespace Impl */
